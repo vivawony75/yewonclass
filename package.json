@@ -1,0 +1,7 @@
+{
+  "name": "my-precious-kids",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "내 금쪽이들 - 학교 출결 및 상담 관리 웹앱"
+}
