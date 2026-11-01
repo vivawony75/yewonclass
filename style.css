@@ -1037,8 +1037,45 @@ td.cell-total50-active {
   max-width: 840px;
 }
 
-#modal-basic-info .modal-box {
+#modal-basic-info .modal-box,
+#modal-counsel-card .modal-box {
   max-width: 720px;
+}
+
+#modal-counsel-unified .modal-box,
+.modal-box.modal-box-wide {
+  max-width: 880px;
+}
+
+.unified-counsel-table th,
+.unified-counsel-table td {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #e3ded7;
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+
+.unified-counsel-table input[type="date"] {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 1.5px solid #dcd7d0;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1971c2;
+  background: #fff;
+}
+
+.unified-counsel-table textarea {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1.5px solid #dcd7d0;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 52px;
+  background: #fff;
 }
 
 .modal-header {

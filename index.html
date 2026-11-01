@@ -191,7 +191,7 @@
           <span class="section-tag tag-green">SECTION 02</span>
           <h2 class="section-title">💬 학생 상담관리</h2>
           <p class="section-desc">
-            출석부 명단 순서대로 학번과 이름이 표시됩니다. <strong>[기본자료]</strong>에서 가정형태·경제적 형편·진로희망·문제행동을 설정하고, <strong>[상담]</strong> 버튼을 눌러 날짜별 상담내용을 기록하세요. (7줄 초과 시 스크롤바 자동 생성)
+            출석부 명단 순서대로 학번과 이름이 표시됩니다. <strong>[상담]</strong> 버튼을 눌러 학생의 기본자료 설정 및 날짜별 상담 내용을 입력·수정·관리하세요. (7줄 초과 시 스크롤바 자동 생성)
           </p>
         </div>
         <div class="section-actions">
@@ -209,12 +209,10 @@
             <thead>
               <tr>
                 <th style="width: 90px;">순번</th>
-                <th style="width: 140px;">학번</th>
-                <th style="width: 150px;">이름</th>
-                <th style="width: 240px;">출결 요약</th>
-                <th>기본자료</th>
-                <th style="width: 140px;">상담하기</th>
-                <th style="width: 130px;">상담 누적 수</th>
+                <th style="width: 160px;">학번</th>
+                <th style="width: 180px;">이름</th>
+                <th style="width: 180px;">상담</th>
+                <th style="width: 150px;">상담 누적 수</th>
               </tr>
             </thead>
             <tbody id="counseling-student-tbody">
@@ -559,180 +557,196 @@
 
   </div>
 
-  <!-- ==================== 모달 1-A: 학생 [기본자료] 작성/수정 모달 ==================== -->
-  <div id="modal-basic-info" class="modal-backdrop hidden">
-    <div class="modal-box pastel-modal">
+  <!-- ==================== 통합 모달: 학생 [상담] (기본자료 + 상담기록 관리) ==================== -->
+  <div id="modal-counsel-unified" class="modal-backdrop hidden">
+    <div class="modal-box pastel-modal modal-box-wide">
       <div class="modal-header">
-        <h3>📋 내 금쪽이 기본자료 설정</h3>
-        <button class="btn-close-modal" data-close="modal-basic-info">&times;</button>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.3rem;">💬</span>
+          <h3 id="counsel-unified-modal-title">내 금쪽이 상담 및 기본자료 관리</h3>
+        </div>
+        <button class="btn-close-modal" data-close="modal-counsel-unified">&times;</button>
       </div>
-      <form id="form-basic-info" class="modal-body">
-        <input type="hidden" id="basic-student-id" />
-        <div class="counsel-info-banner">
-          <div class="info-pair">
-            <span class="info-label">학번:</span>
-            <strong id="basic-display-num">-</strong>
-          </div>
-          <div class="info-pair">
-            <span class="info-label">이름:</span>
-            <strong id="basic-display-name">-</strong>
-          </div>
-        </div>
 
-        <!-- 상담/변경 날짜 직접 입력란 (기본상담관리 날짜 지정) -->
-        <div class="form-section-box" style="background:#f0f7ff; border-color:#bce1f7;">
-          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
-            <label class="box-title" for="basic-info-date" style="margin-bottom:0; color:#1971c2; font-weight:700;">
-              📅 기본상담/기본자료 기준 날짜 <small>(직접 입력·달력 선택 가능)</small>
-            </label>
-            <input type="date" id="basic-info-date" style="padding:0.45rem 0.75rem; border:1.5px solid #64b5f6; border-radius:8px; font-weight:700; font-size:0.95rem; color:#1971c2; background:#fff;" required />
-          </div>
-          <p style="font-size:0.8rem; color:#555; margin-top:0.4rem; margin-bottom:0;">
-            * 이 날짜를 기준으로 기본자료 변경 내용이 기록되며, 상담기록의 해당 날짜 칸에 변경된 내용(파란색)으로 표시됩니다.
-          </p>
-        </div>
-
-        <!-- 출결사항 (출석부 자동 반영) -->
-        <div class="form-section-box">
-          <label class="box-title">📊 출결사항 (출석부 자동 반영)</label>
-          <div id="basic-attendance-summary" class="attendance-auto-badges">
-            <!-- JS 자동 반영 -->
-          </div>
-        </div>
-
-        <!-- 가정형태 (복수 선택 + 기타 직접입력) -->
-        <div class="form-section-box">
-          <label class="box-title">🏠 가정형태 <small>(복수 선택 가능)</small></label>
-          <div class="checkbox-group">
-            <label class="check-pill"><input type="checkbox" name="familyType" value="양부모" /><span>양부모</span></label>
-            <label class="check-pill"><input type="checkbox" name="familyType" value="한부모(아버지)" /><span>한부모(아버지)</span></label>
-            <label class="check-pill"><input type="checkbox" name="familyType" value="한부모(어머니)" /><span>한부모(어머니)</span></label>
-            <label class="check-pill"><input type="checkbox" name="familyType" value="조부모" /><span>조부모</span></label>
-            <label class="check-pill"><input type="checkbox" name="familyType" value="다문화" /><span>다문화</span></label>
-            <label class="check-pill"><input type="checkbox" name="familyType" value="기타" id="chk-family-etc" /><span>기타(직접입력)</span></label>
-          </div>
-          <input type="text" id="family-etc-input" class="etc-input hidden" placeholder="기타 가정형태를 직접 입력하세요..." />
-        </div>
-
-        <!-- 경제적 형편 (체크) -->
-        <div class="form-section-box">
-          <label class="box-title">💰 경제적 형편 <small>(체크)</small></label>
-          <div class="checkbox-group">
-            <label class="check-pill"><input type="radio" name="economicStatus" value="상" /><span>상</span></label>
-            <label class="check-pill"><input type="radio" name="economicStatus" value="중상" /><span>중상</span></label>
-            <label class="check-pill"><input type="radio" name="economicStatus" value="중" checked /><span>중</span></label>
-            <label class="check-pill"><input type="radio" name="economicStatus" value="중하" /><span>중하</span></label>
-            <label class="check-pill"><input type="radio" name="economicStatus" value="하" /><span>하</span></label>
-          </div>
-        </div>
-
-        <!-- 진로희망 (체크 + 기타 직접 기록) -->
-        <div class="form-section-box">
-          <label class="box-title">🎯 진로희망 <small>(체크)</small></label>
-          <div class="checkbox-group">
-            <label class="check-pill"><input type="checkbox" name="careerHope" value="대학진학" /><span>대학진학</span></label>
-            <label class="check-pill"><input type="checkbox" name="careerHope" value="취업" /><span>취업</span></label>
-            <label class="check-pill"><input type="checkbox" name="careerHope" value="진로탐색" /><span>진로탐색</span></label>
-            <label class="check-pill"><input type="checkbox" name="careerHope" value="기타" id="chk-career-etc" /><span>기타(직접 기록)</span></label>
-          </div>
-          <input type="text" id="career-etc-input" class="etc-input hidden" placeholder="기타 진로희망을 직접 기록하세요..." />
-        </div>
-
-        <!-- 생활태도 (긍정 / 관심지도 2줄 구성) -->
-        <div class="form-section-box">
-          <label class="box-title">🌱 생활태도 <small>(체크)</small></label>
-          
-          <!-- 윗줄: 긍정태도 -->
-          <div style="margin-bottom:0.6rem;">
-            <div style="font-size:0.8rem; font-weight:700; color:#2b8a3e; margin-bottom:0.3rem;">[긍정·모범 태도]</div>
-            <div class="checkbox-group">
-              <label class="check-pill"><input type="checkbox" name="attitudePositive" value="선행" /><span>선행</span></label>
-              <label class="check-pill"><input type="checkbox" name="attitudePositive" value="리더십" /><span>리더십</span></label>
-              <label class="check-pill"><input type="checkbox" name="attitudePositive" value="봉사" /><span>봉사</span></label>
-              <label class="check-pill"><input type="checkbox" name="attitudePositive" value="배려" /><span>배려</span></label>
-              <label class="check-pill"><input type="checkbox" name="attitudePositive" value="기타" id="chk-attitude-pos-etc" /><span>기타(직접입력)</span></label>
+      <div class="modal-body" style="gap:1.2rem;">
+        <!-- 상단: 학생 정보 배너 및 학생 전환 드롭다운 -->
+        <div class="counsel-unified-top-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem;">
+          <div class="counsel-info-banner" style="flex:1; min-width:240px; margin:0;">
+            <div class="info-pair">
+              <span class="info-label">학번:</span>
+              <strong id="unified-display-num">-</strong>
             </div>
-            <input type="text" id="attitude-pos-etc-input" class="etc-input hidden" placeholder="기타 긍정 태도를 직접 입력하세요..." />
-          </div>
-
-          <!-- 아랫줄: 관심·지도 태도 -->
-          <div>
-            <div style="font-size:0.8rem; font-weight:700; color:#c92a2a; margin-bottom:0.3rem;">[관심·지도 태도]</div>
-            <div class="checkbox-group">
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="흡연" /><span>흡연</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="음주" /><span>음주</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="나태함" /><span>나태함</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="학교폭력" /><span>학교폭력</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="교권침해" /><span>교권침해</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="지도불응" /><span>지도불응</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="자해" /><span>자해</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="자살생각" /><span>자살생각</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="가출" /><span>가출</span></label>
-              <label class="check-pill"><input type="checkbox" name="problemBehavior" value="기타" id="chk-attitude-neg-etc" /><span>기타(직접입력)</span></label>
+            <div class="info-pair">
+              <span class="info-label">이름:</span>
+              <strong id="unified-display-name">-</strong>
             </div>
-            <input type="text" id="attitude-neg-etc-input" class="etc-input hidden" placeholder="기타 관심/지도 태도를 직접 입력하세요..." />
+          </div>
+          <div id="unified-student-switch-box" style="display:flex; align-items:center; gap:0.5rem;">
+            <label for="unified-student-select" style="font-size:0.85rem; font-weight:700; white-space:nowrap; color:#495057;">학생 변경:</label>
+            <select id="unified-student-select" style="padding:0.4rem 0.75rem; border-radius:8px; border:1.5px solid #dcd7d0; font-size:0.9rem; font-weight:600; background:#fff;"></select>
           </div>
         </div>
 
-        <!-- 지도방안 (파스텔톤 주황색 배경, 자동 표기 및 수정 가능) -->
-        <div class="form-section-box guidance-box">
-          <label class="box-title" style="color:#d9480f;">💡 [지도방안] <small>(체크 조건에 따라 자동 제안 표기)</small></label>
-          <div id="guidance-auto-tags" style="margin-bottom:0.4rem; min-height:24px;">
-            <!-- JS 자동 표기 -->
+        <!-- ================= 1. 상단: 학생 기본자료 ================= -->
+        <div class="unified-section-card pastel-subcard sky-border" style="padding:1.1rem; border-radius:12px; background:#fbfdff;">
+          <div class="section-sub-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; margin-bottom:0.9rem; border-bottom:2px solid #e7f5ff; padding-bottom:0.6rem;">
+            <div style="display:flex; align-items:center; gap:0.4rem;">
+              <span style="font-size:1.15rem;">📋</span>
+              <h4 style="margin:0; font-size:1.05rem; color:#1971c2; font-weight:800;">1. 학생 기본자료</h4>
+            </div>
+
+            <!-- 날짜는 컴퓨터 시스템 따르지 말고, 기본자료 수정하는 날짜와 저장 버튼 따로 설정 -->
+            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.6rem;">
+              <div style="display:flex; align-items:center; gap:0.4rem; background:#fff; padding:0.3rem 0.65rem; border:1.5px solid #64b5f6; border-radius:8px;">
+                <label for="basic-info-date" style="font-size:0.83rem; font-weight:700; color:#1971c2; white-space:nowrap;">📅 기본자료 수정 날짜:</label>
+                <input type="date" id="basic-info-date" style="border:none; outline:none; font-weight:700; font-size:0.9rem; color:#1971c2; background:transparent;" title="기본자료를 수정한 날짜를 선택/입력하세요 (시스템 날짜 자동 덮어쓰기 없음)" />
+              </div>
+              <button type="button" id="btn-save-basic-info" class="btn btn-primary" style="padding:0.45rem 0.95rem; font-size:0.88rem;">
+                <i data-lucide="save"></i>
+                <span>기본자료 저장</span>
+              </button>
+            </div>
           </div>
-          <input type="text" id="guidance-input" class="etc-input" style="background:#fff;" placeholder="지도방안이 자동으로 제안되거나 직접 추가할 수 있습니다." />
+
+          <form id="form-basic-info">
+            <input type="hidden" id="basic-student-id" />
+
+            <!-- 출결사항 (출석부 자동 반영) -->
+            <div class="form-section-box" style="margin-bottom:0.8rem;">
+              <label class="box-title">📊 출결사항 (출석부 자동 반영)</label>
+              <div id="unified-attendance-summary" class="attendance-auto-badges">
+                <!-- JS 자동 반영 -->
+              </div>
+            </div>
+
+            <!-- 가정형태 (복수 선택 + 기타 직접입력) -->
+            <div class="form-section-box" style="margin-bottom:0.8rem;">
+              <label class="box-title">🏠 가정형태 <small>(복수 선택 가능)</small></label>
+              <div class="checkbox-group">
+                <label class="check-pill"><input type="checkbox" name="familyType" value="양부모" /><span>양부모</span></label>
+                <label class="check-pill"><input type="checkbox" name="familyType" value="한부모(아버지)" /><span>한부모(아버지)</span></label>
+                <label class="check-pill"><input type="checkbox" name="familyType" value="한부모(어머니)" /><span>한부모(어머니)</span></label>
+                <label class="check-pill"><input type="checkbox" name="familyType" value="조부모" /><span>조부모</span></label>
+                <label class="check-pill"><input type="checkbox" name="familyType" value="다문화" /><span>다문화</span></label>
+                <label class="check-pill"><input type="checkbox" name="familyType" value="기타" id="chk-family-etc" /><span>기타(직접입력)</span></label>
+              </div>
+              <input type="text" id="family-etc-input" class="etc-input hidden" placeholder="기타 가정형태를 직접 입력하세요..." />
+            </div>
+
+            <!-- 경제적 형편 (체크) -->
+            <div class="form-section-box" style="margin-bottom:0.8rem;">
+              <label class="box-title">💰 경제적 형편 <small>(체크)</small></label>
+              <div class="checkbox-group">
+                <label class="check-pill"><input type="radio" name="economicStatus" value="상" /><span>상</span></label>
+                <label class="check-pill"><input type="radio" name="economicStatus" value="중상" /><span>중상</span></label>
+                <label class="check-pill"><input type="radio" name="economicStatus" value="중" checked /><span>중</span></label>
+                <label class="check-pill"><input type="radio" name="economicStatus" value="중하" /><span>중하</span></label>
+                <label class="check-pill"><input type="radio" name="economicStatus" value="하" /><span>하</span></label>
+              </div>
+            </div>
+
+            <!-- 진로희망 (체크 + 기타 직접 기록) -->
+            <div class="form-section-box" style="margin-bottom:0.8rem;">
+              <label class="box-title">🎯 진로희망 <small>(체크)</small></label>
+              <div class="checkbox-group">
+                <label class="check-pill"><input type="checkbox" name="careerHope" value="대학진학" /><span>대학진학</span></label>
+                <label class="check-pill"><input type="checkbox" name="careerHope" value="취업" /><span>취업</span></label>
+                <label class="check-pill"><input type="checkbox" name="careerHope" value="진로탐색" /><span>진로탐색</span></label>
+                <label class="check-pill"><input type="checkbox" name="careerHope" value="기타" id="chk-career-etc" /><span>기타(직접 기록)</span></label>
+              </div>
+              <input type="text" id="career-etc-input" class="etc-input hidden" placeholder="기타 진로희망을 직접 기록하세요..." />
+            </div>
+
+            <!-- 생활태도 (긍정 / 관심지도 2줄 구성) -->
+            <div class="form-section-box" style="margin-bottom:0.8rem;">
+              <label class="box-title">🌱 생활태도 <small>(체크)</small></label>
+              
+              <!-- 윗줄: 긍정태도 -->
+              <div style="margin-bottom:0.6rem;">
+                <div style="font-size:0.8rem; font-weight:700; color:#2b8a3e; margin-bottom:0.3rem;">[긍정·모범 태도]</div>
+                <div class="checkbox-group">
+                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="선행" /><span>선행</span></label>
+                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="리더십" /><span>리더십</span></label>
+                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="봉사" /><span>봉사</span></label>
+                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="배려" /><span>배려</span></label>
+                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="기타" id="chk-attitude-pos-etc" /><span>기타(직접입력)</span></label>
+                </div>
+                <input type="text" id="attitude-pos-etc-input" class="etc-input hidden" placeholder="기타 긍정 태도를 직접 입력하세요..." />
+              </div>
+
+              <!-- 아랫줄: 관심·지도 태도 -->
+              <div>
+                <div style="font-size:0.8rem; font-weight:700; color:#c92a2a; margin-bottom:0.3rem;">[관심·지도 태도]</div>
+                <div class="checkbox-group">
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="흡연" /><span>흡연</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="음주" /><span>음주</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="나태함" /><span>나태함</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="학교폭력" /><span>학교폭력</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="교권침해" /><span>교권침해</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="지도불응" /><span>지도불응</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="자해" /><span>자해</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="자살생각" /><span>자살생각</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="가출" /><span>가출</span></label>
+                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="기타" id="chk-attitude-neg-etc" /><span>기타(직접입력)</span></label>
+                </div>
+                <input type="text" id="attitude-neg-etc-input" class="etc-input hidden" placeholder="기타 관심/지도 태도를 직접 입력하세요..." />
+              </div>
+            </div>
+
+            <!-- 지도방안 (파스텔톤 주황색 배경, 자동 표기 및 수정 가능) -->
+            <div class="form-section-box guidance-box">
+              <label class="box-title" style="color:#d9480f;">💡 [지도방안] <small>(체크 조건에 따라 자동 제안 표기)</small></label>
+              <div id="guidance-auto-tags" style="margin-bottom:0.4rem; min-height:24px;">
+                <!-- JS 자동 표기 -->
+              </div>
+              <input type="text" id="guidance-input" class="etc-input" style="background:#fff;" placeholder="지도방안이 자동으로 제안되거나 직접 추가할 수 있습니다." />
+            </div>
+          </form>
         </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-sm" data-close="modal-basic-info">취소</button>
-          <button type="submit" class="btn btn-primary">기본자료 저장하기</button>
-        </div>
-      </form>
-    </div>
-  </div>
+        <!-- ================= 2. 하단: 상담 기록 (행 추가, 날짜/내용 입력, 수정, 삭제) ================= -->
+        <div class="unified-section-card pastel-subcard green-border" style="padding:1.1rem; border-radius:12px; background:#fcfffd;">
+          <div class="section-sub-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; margin-bottom:0.9rem; border-bottom:2px solid #ebfbee; padding-bottom:0.6rem;">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <span style="font-size:1.15rem;">💬</span>
+                <h4 style="margin:0; font-size:1.05rem; color:#2b8a3e; font-weight:800;">2. 날짜별 상담 기록</h4>
+                <span id="unified-counsel-count-badge" class="counsel-count-pill" style="font-size:0.8rem; padding:0.15rem 0.55rem;">0회</span>
+              </div>
+              <p style="font-size:0.82rem; color:#555; margin:0.25rem 0 0 0;">
+                아래 <strong>[+ 행 추가]</strong>를 눌러 날짜와 상담 내용을 직접 입력하고 저장·수정·삭제할 수 있습니다.
+              </p>
+            </div>
+            <button type="button" id="btn-add-counsel-entry-row" class="btn btn-green">
+              <i data-lucide="plus-circle"></i>
+              <span>+ 행 추가</span>
+            </button>
+          </div>
 
-  <!-- ==================== 모달 1-B: 상담 작성 모달 (날짜 + 상담내용만 기록) ==================== -->
-  <div id="modal-counsel-card" class="modal-backdrop hidden">
-    <div class="modal-box pastel-modal">
-      <div class="modal-header">
-        <h3>📝 내 금쪽이 상담 기록 작성</h3>
-        <button class="btn-close-modal" data-close="modal-counsel-card">&times;</button>
+          <div class="scroll-10-rows" style="max-height: 320px; overflow-y:auto; border:1px solid #dcd7d0; border-radius:8px; background:#fff;">
+            <table class="data-table unified-counsel-table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="background:#f2fbf5;">
+                  <th style="width: 140px; text-align:center;">상담 날짜</th>
+                  <th style="text-align:left;">상담 내용</th>
+                  <th style="width: 160px; text-align:center;">관리</th>
+                </tr>
+              </thead>
+              <tbody id="unified-counsel-tbody">
+                <!-- JS 렌더링 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <form id="form-counsel-card" class="modal-body">
-        <!-- 학생 선택(행 추가 시) 또는 고정 표시 -->
-        <div class="counsel-top-grid">
-          <div class="form-field">
-            <label>학생 선택 (학번 / 이름)</label>
-            <select id="counsel-student-select" required></select>
-          </div>
-          <div class="form-field">
-            <label>상담 날짜 (자동 표기·수정 가능)</label>
-            <input type="date" id="counsel-date" required />
-          </div>
-        </div>
 
-        <div class="counsel-info-banner">
-          <div class="info-pair">
-            <span class="info-label">학번:</span>
-            <strong id="card-display-num">-</strong>
-          </div>
-          <div class="info-pair">
-            <span class="info-label">이름:</span>
-            <strong id="card-display-name">-</strong>
-          </div>
-        </div>
-
-        <!-- 상담내용 (직접 입력, 3줄 넘어가면 스크롤) -->
-        <div class="form-section-box">
-          <label class="box-title" for="counsel-content">✏️ 상담내용 <small>(직접 입력, 3줄 초과 시 자동 스크롤)</small></label>
-          <textarea id="counsel-content" class="counsel-textarea-3lines" rows="3" placeholder="상담 내용을 입력하세요 (3줄이 넘어가면 스크롤바가 생깁니다)..." required></textarea>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-sm" data-close="modal-counsel-card">취소</button>
-          <button type="submit" class="btn btn-primary">상담내용 저장하기</button>
-        </div>
-      </form>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" id="btn-unified-word-download" class="btn btn-yellow">
+          <i data-lucide="download"></i>
+          <span>Word(.doc) 개인 상담기록부 내려받기</span>
+        </button>
+        <button type="button" class="btn btn-outline-sm" data-close="modal-counsel-unified">닫기</button>
+      </div>
     </div>
   </div>
 

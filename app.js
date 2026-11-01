@@ -747,6 +747,7 @@ function getStudentBasicInfo(studentId) {
   if (!state.basicInfos) state.basicInfos = {};
   const raw = state.basicInfos[studentId] || {};
   return {
+    recordDate: raw.recordDate || '',
     familyTypes: Array.isArray(raw.familyTypes) ? raw.familyTypes : [],
     familyEtc: raw.familyEtc || '',
     economicStatus: raw.economicStatus || '중',
@@ -845,7 +846,7 @@ function renderCounselingSection() {
   if (state.students.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="padding: 2rem; color: #6c757d;">
+        <td colspan="5" style="padding: 2rem; color: #6c757d;">
           출석부에 등록된 학생이 없습니다.
         </td>
       </tr>
@@ -855,20 +856,12 @@ function renderCounselingSection() {
 
   tbody.innerHTML = state.students.map((stu, idx) => {
     const counselCount = state.counselings.filter(c => c.studentId === stu.id).length;
-    const stats = calculateStudentAttendanceStats(stu.id);
 
     return `
       <tr>
         <td>${idx + 1}</td>
         <td><strong>${escapeHtml(stu.studentNo)}</strong></td>
         <td><strong>${escapeHtml(stu.name)}</strong></td>
-        <td>${renderStatsBadgesHtml(stats)}</td>
-        <td>
-          ${renderBasicInfoSummaryBadges(stu.id)}
-          <button class="btn btn-yellow btn-open-basic" data-stu-id="${stu.id}" style="padding:0.35rem 0.75rem; font-size:0.82rem;">
-            📋 기본자료
-          </button>
-        </td>
         <td>
           <button class="btn btn-green btn-open-counsel" data-stu-id="${stu.id}">
             💬 상담
@@ -880,13 +873,6 @@ function renderCounselingSection() {
       </tr>
     `;
   }).join('');
-
-  tbody.querySelectorAll('.btn-open-basic').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const stuId = btn.getAttribute('data-stu-id');
-      openBasicInfoModal(stuId);
-    });
-  });
 
   tbody.querySelectorAll('.btn-open-counsel').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1855,46 +1841,107 @@ function updateGuidancePreview() {
   return tags;
 }
 
+let currentUnifiedStudentId = null;
+let tempCounselRows = [];
+let editingCounselIds = new Set();
+
+function openCounselModal(selectedStudentId = null, addRowImmediately = false) {
+  if (state.students.length === 0) {
+    alert('먼저 관리자 또는 담임관리 메뉴에서 학생 명단을 추가해주세요.');
+    return;
+  }
+
+  const modal = document.getElementById('modal-counsel-unified');
+  if (!modal) return;
+
+  const targetId = selectedStudentId || state.students[0].id;
+  currentUnifiedStudentId = targetId;
+  tempCounselRows = [];
+  editingCounselIds.clear();
+
+  if (addRowImmediately) {
+    tempCounselRows.push({
+      id: 'temp-' + Date.now(),
+      studentId: targetId,
+      date: '',
+      content: '',
+      isNew: true
+    });
+  }
+
+  // 학생 선택 드롭다운 채우기
+  const selectEl = document.getElementById('unified-student-select');
+  if (selectEl) {
+    selectEl.innerHTML = state.students.map(s => `
+      <option value="${s.id}" ${s.id === targetId ? 'selected' : ''}>
+        ${escapeHtml(s.studentNo)} - ${escapeHtml(s.name)}
+      </option>
+    `).join('');
+  }
+
+  loadStudentToUnifiedModal(targetId);
+  modal.classList.remove('hidden');
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
 function openBasicInfoModal(studentId) {
+  openCounselModal(studentId);
+}
+
+function loadStudentToUnifiedModal(studentId) {
+  currentUnifiedStudentId = studentId;
   const stu = state.students.find(s => s.id === studentId);
   if (!stu) return;
 
-  const modal = document.getElementById('modal-basic-info');
+  // 상단 학생 정보 배너
+  const numEl = document.getElementById('unified-display-num');
+  const nameEl = document.getElementById('unified-display-name');
+  if (numEl) numEl.textContent = stu.studentNo;
+  if (nameEl) nameEl.textContent = stu.name;
+
+  // 1. 기본자료 불러오기
   const formEl = document.getElementById('form-basic-info');
-  formEl.reset();
+  if (formEl) formEl.reset();
 
-  const dateInp = document.getElementById('basic-info-date');
-  if (dateInp) {
-    dateInp.value = formatDateYMD(new Date());
-  }
+  const idInp = document.getElementById('basic-student-id');
+  if (idInp) idInp.value = stu.id;
 
-  document.getElementById('basic-student-id').value = stu.id;
-  document.getElementById('basic-display-num').textContent = stu.studentNo;
-  document.getElementById('basic-display-name').textContent = stu.name;
-
-  // 출석부 자동 반영
-  const stats = calculateStudentAttendanceStats(stu.id);
-  const summaryBox = document.getElementById('basic-attendance-summary');
-  summaryBox.innerHTML = `
-    <div style="display:flex; flex-wrap:wrap; gap:0.45rem;">
-      <span class="mini-badge a1">미인정(A) 누적: ${stats.countA1}일</span>
-      <span class="mini-badge ${stats.isTotalAll50 ? 't50' : 'a2'}">모든결석(A+B) 누적: ${stats.totalAll}일 ${stats.isTotalAll50 ? '(50일 이상 - 주황)' : ''}</span>
-      <span class="mini-badge ${stats.isStreak5 ? 's5' : ''}">
-        연속5일(A): ${stats.isStreak5 ? `해당 (최대 연속 ${stats.maxConsecutiveA1}일)` : `미해당 (최대 ${stats.maxConsecutiveA1}일)`}
-      </span>
-      <span class="mini-badge ${stats.isTotal35 ? 't35' : ''}">
-        누적35일(A): ${stats.isTotal35 ? '해당' : '미해당'}
-      </span>
-    </div>
-  `;
-
-  // 저장된 기본자료 불러와서 체크박스/라디오 상태 세팅
   const info = getStudentBasicInfo(stu.id);
 
+  // 5) 날짜는 컴퓨터 시스템 따르지 말고, 기본자료 수정하는 날짜와 저장 버튼 따로 설정
+  // 이전에 저장된 날짜가 있으면 그대로 표시, 없으면 빈칸 (시스템 날짜 강제 주입하지 않음)
+  const dateInp = document.getElementById('basic-info-date');
+  if (dateInp) {
+    dateInp.value = info.recordDate || '';
+  }
+
+  // 출결사항 자동 반영
+  const stats = calculateStudentAttendanceStats(stu.id);
+  const summaryBox = document.getElementById('unified-attendance-summary');
+  if (summaryBox) {
+    summaryBox.innerHTML = `
+      <div style="display:flex; flex-wrap:wrap; gap:0.45rem;">
+        <span class="mini-badge a1">미인정(A) 누적: ${stats.countA1}일</span>
+        <span class="mini-badge ${stats.isTotalAll50 ? 't50' : 'a2'}">모든결석(A+B) 누적: ${stats.totalAll}일 ${stats.isTotalAll50 ? '(50일 이상 - 주황)' : ''}</span>
+        <span class="mini-badge ${stats.isStreak5 ? 's5' : ''}">
+          연속5일(A): ${stats.isStreak5 ? `해당 (최대 연속 ${stats.maxConsecutiveA1}일)` : `미해당 (최대 ${stats.maxConsecutiveA1}일)`}
+        </span>
+        <span class="mini-badge ${stats.isTotal35 ? 't35' : ''}">
+          누적35일(A): ${stats.isTotal35 ? '해당' : '미해당'}
+        </span>
+      </div>
+    `;
+  }
+
   // 1) 가정형태
-  formEl.querySelectorAll('input[name="familyType"]').forEach(chk => {
-    chk.checked = (info.familyTypes || []).includes(chk.value);
-  });
+  if (formEl) {
+    formEl.querySelectorAll('input[name="familyType"]').forEach(chk => {
+      chk.checked = (info.familyTypes || []).includes(chk.value);
+    });
+  }
   const chkFamEtc = document.getElementById('chk-family-etc');
   const inpFamEtc = document.getElementById('family-etc-input');
   if (chkFamEtc && inpFamEtc) {
@@ -1906,14 +1953,18 @@ function openBasicInfoModal(studentId) {
 
   // 2) 경제적 형편
   const econVal = info.economicStatus || '중';
-  formEl.querySelectorAll('input[name="economicStatus"]').forEach(rad => {
-    rad.checked = rad.value === econVal;
-  });
+  if (formEl) {
+    formEl.querySelectorAll('input[name="economicStatus"]').forEach(rad => {
+      rad.checked = rad.value === econVal;
+    });
+  }
 
   // 3) 진로희망
-  formEl.querySelectorAll('input[name="careerHope"]').forEach(chk => {
-    chk.checked = (info.careerHopes || []).includes(chk.value);
-  });
+  if (formEl) {
+    formEl.querySelectorAll('input[name="careerHope"]').forEach(chk => {
+      chk.checked = (info.careerHopes || []).includes(chk.value);
+    });
+  }
   const chkCarEtc = document.getElementById('chk-career-etc');
   const inpCarEtc = document.getElementById('career-etc-input');
   if (chkCarEtc && inpCarEtc) {
@@ -1924,9 +1975,11 @@ function openBasicInfoModal(studentId) {
   }
 
   // 4) 생활태도 [긍정·모범]
-  formEl.querySelectorAll('input[name="attitudePositive"]').forEach(chk => {
-    chk.checked = (info.attitudePositive || []).includes(chk.value);
-  });
+  if (formEl) {
+    formEl.querySelectorAll('input[name="attitudePositive"]').forEach(chk => {
+      chk.checked = (info.attitudePositive || []).includes(chk.value);
+    });
+  }
   const chkPosEtc = document.getElementById('chk-attitude-pos-etc');
   const inpPosEtc = document.getElementById('attitude-pos-etc-input');
   if (chkPosEtc && inpPosEtc) {
@@ -1937,9 +1990,11 @@ function openBasicInfoModal(studentId) {
   }
 
   // 5) 생활태도 [관심·지도]
-  formEl.querySelectorAll('input[name="problemBehavior"]').forEach(chk => {
-    chk.checked = (info.problemBehaviors || []).includes(chk.value);
-  });
+  if (formEl) {
+    formEl.querySelectorAll('input[name="problemBehavior"]').forEach(chk => {
+      chk.checked = (info.problemBehaviors || []).includes(chk.value);
+    });
+  }
   const chkNegEtc = document.getElementById('chk-attitude-neg-etc');
   const inpNegEtc = document.getElementById('attitude-neg-etc-input');
   if (chkNegEtc && inpNegEtc) {
@@ -1956,43 +2011,180 @@ function openBasicInfoModal(studentId) {
   }
   updateGuidancePreview();
 
-  modal.classList.remove('hidden');
+  // 2. 상담 기록 테이블 렌더링
+  renderUnifiedCounselingTable(stu.id);
 }
 
-function openCounselModal(selectedStudentId = null) {
-  if (state.students.length === 0) {
-    alert('먼저 관리자 메뉴에서 학생 명단을 추가해주세요.');
+function renderUnifiedCounselingTable(studentId) {
+  const tbody = document.getElementById('unified-counsel-tbody');
+  const countBadge = document.getElementById('unified-counsel-count-badge');
+  if (!tbody) return;
+
+  const stuCounsels = state.counselings
+    .filter(c => c.studentId === studentId)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  if (countBadge) {
+    countBadge.textContent = `${stuCounsels.length}회`;
+  }
+
+  const allItems = [
+    ...tempCounselRows.filter(r => r.studentId === studentId),
+    ...stuCounsels
+  ];
+
+  if (allItems.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="text-align:center; color:#888; padding:1.8rem;">
+          등록된 상담 기록이 없습니다. 우측 상단의 <strong>[+ 행 추가]</strong> 버튼을 눌러 상담을 입력하세요.
+        </td>
+      </tr>
+    `;
     return;
   }
 
-  const modal = document.getElementById('modal-counsel-card');
-  const selectEl = document.getElementById('counsel-student-select');
-  const dateEl = document.getElementById('counsel-date');
-  const formEl = document.getElementById('form-counsel-card');
+  tbody.innerHTML = allItems.map(item => {
+    const isEditing = Boolean(item.isNew || editingCounselIds.has(item.id));
 
-  formEl.reset();
+    if (isEditing) {
+      return `
+        <tr data-counsel-id="${item.id}" style="background:#fafffb;">
+          <td style="text-align:center; vertical-align:middle;">
+            <input
+              type="date"
+              class="inp-row-date"
+              value="${escapeHtml(item.date || '')}"
+              style="padding:0.35rem 0.5rem; border:1.5px solid #2b8a3e; border-radius:6px; font-weight:700; color:#2b8a3e;"
+              title="상담 날짜를 입력/선택하세요 (시스템 날짜 자동 덮어쓰기 없음)"
+            />
+          </td>
+          <td>
+            <textarea
+              class="inp-row-content"
+              rows="2"
+              placeholder="상담 내용을 입력하세요 (3줄 초과 시 자동 스크롤)..."
+              style="width:100%; padding:0.45rem 0.65rem; border:1.5px solid #2b8a3e; border-radius:6px; font-family:inherit; font-size:0.88rem; resize:vertical; min-height:50px;"
+            >${escapeHtml(item.content || '')}</textarea>
+          </td>
+          <td style="text-align:center; vertical-align:middle;">
+            <div class="row-action-btns">
+              <button type="button" class="btn btn-green btn-save-counsel-row" data-id="${item.id}" style="padding:0.35rem 0.65rem; font-size:0.82rem;">
+                저장
+              </button>
+              <button type="button" class="btn btn-outline-sm btn-cancel-counsel-row" data-id="${item.id}" style="padding:0.35rem 0.65rem; font-size:0.82rem;">
+                취소
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
 
-  // 학생 드롭다운 채우기
-  selectEl.innerHTML = state.students.map(stu => `
-    <option value="${stu.id}">${escapeHtml(stu.studentNo)} - ${escapeHtml(stu.name)}</option>
-  `).join('');
+    return `
+      <tr data-counsel-id="${item.id}">
+        <td style="text-align:center; font-weight:700; color:#1971c2; vertical-align:middle; background:#fbfdff;">
+          ${escapeHtml(item.date || '-')}
+        </td>
+        <td style="text-align:left; vertical-align:middle;">
+          <div class="detail-content-scroll" style="white-space:pre-wrap; max-height:80px; overflow-y:auto; line-height:1.5;">${escapeHtml(item.content)}</div>
+        </td>
+        <td style="text-align:center; vertical-align:middle;">
+          <div class="row-action-btns">
+            <button type="button" class="btn btn-outline-sm btn-edit-counsel-row" data-id="${item.id}" style="padding:0.35rem 0.65rem; font-size:0.82rem;">
+              수정
+            </button>
+            <button type="button" class="btn-danger-sm btn-del-counsel-row" data-id="${item.id}" style="padding:0.35rem 0.65rem; font-size:0.82rem;">
+              삭제
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 
-  const targetId = selectedStudentId || state.students[0].id;
-  selectEl.value = targetId;
+  // 행 저장 버튼
+  tbody.querySelectorAll('.btn-save-counsel-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const tr = tbody.querySelector(`tr[data-counsel-id="${id}"]`);
+      if (!tr) return;
 
-  // 오늘 날짜 자동 표기
-  dateEl.value = formatDateYMD(new Date());
+      const dateVal = tr.querySelector('.inp-row-date').value.trim();
+      const contentVal = tr.querySelector('.inp-row-content').value.trim();
 
-  updateCounselModalStudentPreview(targetId);
-  modal.classList.remove('hidden');
-}
+      if (!dateVal) {
+        alert('상담 날짜를 입력 또는 선택해주세요.');
+        tr.querySelector('.inp-row-date').focus();
+        return;
+      }
+      if (!contentVal) {
+        alert('상담 내용을 입력해주세요.');
+        tr.querySelector('.inp-row-content').focus();
+        return;
+      }
 
-function updateCounselModalStudentPreview(studentId) {
-  const stu = state.students.find(s => s.id === studentId);
-  if (!stu) return;
+      const stu = state.students.find(s => s.id === studentId);
+      const isTemp = tempCounselRows.some(r => r.id === id);
 
-  document.getElementById('card-display-num').textContent = stu.studentNo;
-  document.getElementById('card-display-name').textContent = stu.name;
+      if (isTemp) {
+        tempCounselRows = tempCounselRows.filter(r => r.id !== id);
+        state.counselings.push({
+          id: 'c-' + Date.now(),
+          studentId: stu.id,
+          studentNo: stu.studentNo,
+          studentName: stu.name,
+          date: dateVal,
+          content: contentVal
+        });
+      } else {
+        const item = state.counselings.find(c => c.id === id);
+        if (item) {
+          item.date = dateVal;
+          item.content = contentVal;
+        }
+        editingCounselIds.delete(id);
+      }
+
+      saveState();
+      renderAll();
+      renderUnifiedCounselingTable(studentId);
+    });
+  });
+
+  // 행 취소 버튼
+  tbody.querySelectorAll('.btn-cancel-counsel-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      tempCounselRows = tempCounselRows.filter(r => r.id !== id);
+      editingCounselIds.delete(id);
+      renderUnifiedCounselingTable(studentId);
+    });
+  });
+
+  // 행 수정 버튼
+  tbody.querySelectorAll('.btn-edit-counsel-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      editingCounselIds.add(id);
+      renderUnifiedCounselingTable(studentId);
+      const tr = tbody.querySelector(`tr[data-counsel-id="${id}"]`);
+      if (tr) tr.querySelector('.inp-row-content')?.focus();
+    });
+  });
+
+  // 행 삭제 버튼
+  tbody.querySelectorAll('.btn-del-counsel-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      if (!confirm('이 상담 기록을 삭제하시겠습니까?')) return;
+      state.counselings = state.counselings.filter(c => c.id !== id);
+      editingCounselIds.delete(id);
+      saveState();
+      renderAll();
+      renderUnifiedCounselingTable(studentId);
+    });
+  });
 }
 
 // 개인 상담내용 보기: 상단에 [기본자료] 노출하고 그 아래로 [기본자료 변동] 열과 [상담 내용]을 날짜별로 연달아 기록 표기
@@ -2627,10 +2819,51 @@ document.addEventListener('DOMContentLoaded', () => {
     openCounselModal(null);
   });
 
-  // 상담 모달 내 학생 변경 시 학번/이름 실시간 갱신
-  document.getElementById('counsel-student-select').addEventListener('change', (e) => {
-    updateCounselModalStudentPreview(e.target.value);
-  });
+  // 4) 상담관리 -> [+ 상담 행 추가 / 새 상담 작성]
+  const btnQuickCounsel = document.getElementById('btn-quick-counsel-row');
+  if (btnQuickCounsel) {
+    btnQuickCounsel.addEventListener('click', () => {
+      openCounselModal(null, true);
+    });
+  }
+
+  // 통합 상담 모달 내 학생 변경 시 데이터 전환
+  const unifiedStudentSelect = document.getElementById('unified-student-select');
+  if (unifiedStudentSelect) {
+    unifiedStudentSelect.addEventListener('change', (e) => {
+      loadStudentToUnifiedModal(e.target.value);
+    });
+  }
+
+  // 통합 상담 모달 내 [+ 상담 행 추가] 버튼
+  const btnAddCounselRow = document.getElementById('btn-add-counsel-entry-row');
+  if (btnAddCounselRow) {
+    btnAddCounselRow.addEventListener('click', () => {
+      if (!currentUnifiedStudentId) return;
+      tempCounselRows.push({
+        id: 'temp-' + Date.now(),
+        studentId: currentUnifiedStudentId,
+        date: '',
+        content: '',
+        isNew: true
+      });
+      renderUnifiedCounselingTable(currentUnifiedStudentId);
+      const firstRow = document.querySelector('#unified-counsel-tbody tr[data-counsel-id^="temp-"]');
+      if (firstRow) {
+        firstRow.querySelector('.inp-row-date')?.focus();
+      }
+    });
+  }
+
+  // 통합 상담 모달 내 Word 다운로드 버튼
+  const btnUnifiedWord = document.getElementById('btn-unified-word-download');
+  if (btnUnifiedWord) {
+    btnUnifiedWord.addEventListener('click', () => {
+      if (currentUnifiedStudentId) {
+        downloadStudentPersonalWord(currentUnifiedStudentId);
+      }
+    });
+  }
 
   // 기본자료 모달 내 기타(직접입력) 체크 토글 바인딩
   const setupEtcToggle = (chkId, inpId) => {
@@ -2659,11 +2892,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 학생 기본자료 저장 & 변동 이력(diff) 자동 기록
-  document.getElementById('form-basic-info').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const stuId = document.getElementById('basic-student-id').value;
+  // 5) 날짜는 컴퓨터 시스템 따르지 말고, 기본자료 수정하는 날짜와 저장 버튼 따로 설정
+  const handleSaveBasicInfo = () => {
+    const stuId = currentUnifiedStudentId || document.getElementById('basic-student-id')?.value;
     if (!stuId) return;
+
+    const stu = state.students.find(s => s.id === stuId);
+    if (!stu) return;
 
     const formEl = document.getElementById('form-basic-info');
     const oldInfo = getStudentBasicInfo(stuId);
@@ -2694,6 +2929,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const newGuidanceAuto = calculateAutoGuidance({ attitudePositive, problemBehaviors, economicStatus });
     const guidanceInput = document.getElementById('guidance-input');
     const guidanceCustom = guidanceInput ? guidanceInput.value.trim() : '';
+
+    // 날짜는 컴퓨터 시스템 따르지 않고, 사용자가 직접 수정한 날짜 유지
+    const dateInp = document.getElementById('basic-info-date');
+    const recordDate = (dateInp && dateInp.value) ? dateInp.value.trim() : '';
 
     // 변동 내역(Diff) 계산: 해제 시 "** -> 해제", 변경 시 "** -> **"
     const diffList = [];
@@ -2753,9 +2992,6 @@ document.addEventListener('DOMContentLoaded', () => {
       diffList.push(`지도방안(직접): ${oldInfo.guidanceCustom || '없음'} -> ${guidanceCustom || '없음'}`);
     }
 
-    const dateInp = document.getElementById('basic-info-date');
-    const recordDate = (dateInp && dateInp.value) ? dateInp.value : formatDateYMD(new Date());
-
     // 초기 등록 시 또는 기존 변경 이력이 없는 경우에도 첫 저장 내용을 diffList에 등록
     if (diffList.length === 0 && (!state.basicInfoHistory?.[stuId] || state.basicInfoHistory[stuId].length === 0)) {
       if (familyTypes.length > 0) diffList.push(`가정형태: ${familyTypes.join(', ')}`);
@@ -2765,8 +3001,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (problemBehaviors.length > 0) diffList.push(`생활태도(관심): ${problemBehaviors.join(', ')}`);
     }
 
-    // 변경 내역이 있는 경우 사용자가 직접 입력/선택한 날짜(recordDate)의 행에 기록
-    if (diffList.length > 0) {
+    // 변경 내역이 있고 날짜가 지정된 경우 해당 날짜로 diff 기록
+    if (diffList.length > 0 && recordDate) {
       if (!state.basicInfoHistory) state.basicInfoHistory = {};
       if (!state.basicInfoHistory[stuId]) state.basicInfoHistory[stuId] = [];
       const existingHistory = state.basicInfoHistory[stuId].find(h => h.date === recordDate);
@@ -2783,6 +3019,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!state.basicInfos) state.basicInfos = {};
     state.basicInfos[stuId] = {
+      recordDate,
       familyTypes,
       familyEtc,
       economicStatus,
@@ -2797,39 +3034,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     saveState();
-    document.getElementById('modal-basic-info').classList.add('hidden');
     renderAll();
-  });
+    alert(`[${stu.studentNo} ${stu.name}] 학생의 기본자료가 성공적으로 저장되었습니다!`);
+  };
 
-  // 상담내용 저장 (상담란만 기록)
-  document.getElementById('form-counsel-card').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const stuId = document.getElementById('counsel-student-select').value;
-    const stu = state.students.find(s => s.id === stuId);
-    if (!stu) return;
+  const btnSaveBasic = document.getElementById('btn-save-basic-info');
+  if (btnSaveBasic) {
+    btnSaveBasic.addEventListener('click', handleSaveBasicInfo);
+  }
 
-    const dateVal = document.getElementById('counsel-date').value;
-    const content = document.getElementById('counsel-content').value.trim();
-
-    if (!content) {
-      alert('상담내용을 입력해주세요.');
-      return;
-    }
-
-    const newCounsel = {
-      id: 'c-' + Date.now(),
-      studentId: stu.id,
-      studentNo: stu.studentNo,
-      studentName: stu.name,
-      date: dateVal,
-      content
-    };
-
-    state.counselings.push(newCounsel);
-    saveState();
-    document.getElementById('modal-counsel-card').classList.add('hidden');
-    renderAll();
-  });
+  const formBasic = document.getElementById('form-basic-info');
+  if (formBasic) {
+    formBasic.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleSaveBasicInfo();
+    });
+  }
 
   // 5) 관리자 -> [출석부] 행 추가 버튼
   document.getElementById('btn-add-student-row').addEventListener('click', () => {
