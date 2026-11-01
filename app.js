@@ -131,6 +131,33 @@ function getInitialState() {
 
 let currentActiveAccountId = 'admin';
 
+// 출결 입력값 자동 정규화:
+// - 대소문자 (a, b -> A, B)
+// - 한글 키보드 오타 (ㅁ -> A, ㅠ -> B)
+// - 숫자 입력 편의 (1 -> A, 2 -> B)
+// - 기존 레거시 코드 (A1 -> A, A2/B1 -> B)
+function normalizeAttendanceValue(raw) {
+  if (raw === null || raw === undefined) return '';
+  const s = String(raw).trim();
+  if (!s) return '';
+  const upper = s.toUpperCase();
+
+  // A 계열 (미인정결석)
+  if (upper === 'A' || upper === 'A1' || upper === '1' || s === 'ㅁ') {
+    return 'A';
+  }
+  // B 계열 (기타결석)
+  if (upper === 'B' || upper === 'A2' || upper === 'B1' || upper === '2' || s === 'ㅠ') {
+    return 'B';
+  }
+
+  // 앞글자나 부분 매칭 (한글 자모 등)
+  if (upper.startsWith('A') || s.startsWith('ㅁ')) return 'A';
+  if (upper.startsWith('B') || s.startsWith('ㅠ')) return 'B';
+
+  return s;
+}
+
 function getCurrentAccount() {
   try {
     const raw = sessionStorage.getItem(SESSION_CURRENT_ACCOUNT_KEY);
@@ -197,8 +224,7 @@ function loadStateFromLocal() {
       const att = parsed.attendance || {};
       Object.keys(att).forEach(stuId => {
         Object.keys(att[stuId] || {}).forEach(ymd => {
-          if (att[stuId][ymd] === 'A1') att[stuId][ymd] = 'A';
-          else if (att[stuId][ymd] === 'A2') att[stuId][ymd] = 'B';
+          att[stuId][ymd] = normalizeAttendanceValue(att[stuId][ymd]);
         });
       });
 
@@ -211,7 +237,32 @@ function loadStateFromLocal() {
         basicInfoHistory: parsed.basicInfoHistory || {},
         counselings: Array.isArray(parsed.counselings) ? parsed.counselings : []
       };
+    } else {
+      // 기존 accountsData['admin']의 출석 기록이 비어있고 parsed.attendance에 남아있으면 복원
+      if (
+        (!accountsData['admin'].attendance || Object.keys(accountsData['admin'].attendance).length === 0) &&
+        parsed.attendance && Object.keys(parsed.attendance).length > 0
+      ) {
+        accountsData['admin'].attendance = parsed.attendance;
+      }
     }
+
+    // accountsData 내 모든 계정의 attendance 값을 A/B로 정규화
+    Object.keys(accountsData).forEach(accId => {
+      const acc = accountsData[accId];
+      if (acc && acc.attendance) {
+        Object.keys(acc.attendance).forEach(stuId => {
+          Object.keys(acc.attendance[stuId] || {}).forEach(ymd => {
+            const norm = normalizeAttendanceValue(acc.attendance[stuId][ymd]);
+            if (norm === 'A' || norm === 'B') {
+              acc.attendance[stuId][ymd] = norm;
+            } else if (!norm) {
+              delete acc.attendance[stuId][ymd];
+            }
+          });
+        });
+      }
+    });
 
     // 2) 등록된 각 교사별 accountsData가 없으면 기본 양식 생성
     teachers.forEach(tch => {
@@ -264,6 +315,14 @@ async function saveState() {
       await setDoc(doc(firestoreDb, 'appData', 'mainState'), {
         teachers: state.teachers || [],
         accountsData: state.accountsData || {},
+        // 탑레벨 필드도 함께 저장하여 구버전 호환 및 onSnapshot 시 데이터 소실 완전 방지
+        students: state.students || [],
+        attendance: state.attendance || {},
+        holidays: state.holidays || {},
+        holidayReasons: state.holidayReasons || {},
+        basicInfos: state.basicInfos || {},
+        basicInfoHistory: state.basicInfoHistory || {},
+        counselings: state.counselings || [],
         supportLinks: (state.supportLinks || []).map(s => ({
           id: s.id,
           name: s.name,
@@ -350,17 +409,17 @@ function calculateStudentAttendanceStats(studentId) {
   for (const ymd of recordedDates) {
     // 휴업일로 지정된 날짜는 결석 집계에서 제외
     if (state.holidays && state.holidays[ymd]) continue;
-    const val = (stuRecords[ymd] || '').toUpperCase().trim();
-    if (val === 'A' || val === 'A1') countA1++;
-    else if (val === 'B' || val === 'A2') countA2++;
+    const val = normalizeAttendanceValue(stuRecords[ymd]);
+    if (val === 'A') countA1++;
+    else if (val === 'B') countA2++;
   }
 
   // 연속 미인정결석(A) 최대 일수 계산 (주말·공휴일·휴업일은 건너뛰며 앞뒤 연결)
   let maxConsecutiveA1 = 0;
   const a1Dates = recordedDates.filter(ymd => {
     if (state.holidays && state.holidays[ymd]) return false;
-    const mark = (stuRecords[ymd] || '').toUpperCase().trim();
-    return mark === 'A' || mark === 'A1';
+    const mark = normalizeAttendanceValue(stuRecords[ymd]);
+    return mark === 'A';
   });
 
   if (a1Dates.length > 0) {
@@ -375,8 +434,8 @@ function calculateStudentAttendanceStats(studentId) {
       if (isNonSchoolDay(ymd)) {
         // 토·일, 공휴일, 휴업일은 스트릭을 끊지 않고 앞뒤로 그대로 연결
       } else {
-        const mark = (stuRecords[ymd] || '').toUpperCase().trim();
-        if (mark === 'A' || mark === 'A1') {
+        const mark = normalizeAttendanceValue(stuRecords[ymd]);
+        if (mark === 'A') {
           currentStreak++;
           if (currentStreak > maxConsecutiveA1) {
             maxConsecutiveA1 = currentStreak;
@@ -509,8 +568,9 @@ function renderAttendanceSection() {
     const dayCellsHtml = weekDays.map(dayInfo => {
       const isHoliday = Boolean(state.holidays[dayInfo.ymd]);
       const rawVal = isHoliday ? '' : (stuAtt[dayInfo.ymd] || '');
-      const upperVal = rawVal.toUpperCase();
-      const valClass = upperVal === 'A' ? 'val-a1' : (upperVal === 'B' ? 'val-a2' : '');
+      const normVal = normalizeAttendanceValue(rawVal);
+      const displayVal = (normVal === 'A' || normVal === 'B') ? normVal : (rawVal || '');
+      const valClass = displayVal === 'A' ? 'val-a1' : (displayVal === 'B' ? 'val-a2' : '');
 
       return `
         <td class="${isHoliday ? 'is-holiday-col' : ''}">
@@ -519,11 +579,13 @@ function renderAttendanceSection() {
             class="att-input ${valClass}"
             data-stu-id="${stu.id}"
             data-ymd="${dayInfo.ymd}"
-            value="${upperVal}"
-            maxlength="1"
+            value="${escapeHtml(displayVal)}"
+            maxlength="2"
+            autocomplete="off"
+            spellcheck="false"
             placeholder="${isHoliday ? '휴업' : ''}"
             ${isHoliday ? 'disabled' : ''}
-            title="미인정결석: A, 기타결석: B, 출석: 빈칸"
+            title="미인정결석: A (또는 1, ㅁ), 기타결석: B (또는 2, ㅠ), 출석: 빈칸 (스페이스바 토글 가능)"
           />
         </td>
       `;
@@ -546,50 +608,110 @@ function renderAttendanceSection() {
     `;
   }).join('');
 
-  // 출결 입력 이벤트 바인딩 (직접 입력: 빈칸, A, B)
+  // 출결 입력 이벤트 바인딩 (직접 입력: 빈칸, A, B / 키보드 단축키 및 스페이스바 지원)
   tbody.querySelectorAll('.att-input').forEach(input => {
+    // 포커스 시 전체 선택 (바로 덮어쓰기 편리)
+    input.addEventListener('focus', (e) => {
+      e.target.select();
+    });
+
+    // 스페이스바 누르면: 빈칸 -> A -> B -> 빈칸 순환
+    input.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        const stuId = input.getAttribute('data-stu-id');
+        const ymd = input.getAttribute('data-ymd');
+        const currentNorm = normalizeAttendanceValue(input.value);
+
+        let nextVal = '';
+        if (currentNorm === '') nextVal = 'A';
+        else if (currentNorm === 'A') nextVal = 'B';
+        else if (currentNorm === 'B') nextVal = '';
+        else nextVal = 'A';
+
+        if (!state.attendance[stuId]) state.attendance[stuId] = {};
+        if (nextVal) {
+          state.attendance[stuId][ymd] = nextVal;
+        } else {
+          delete state.attendance[stuId][ymd];
+        }
+
+        input.value = nextVal;
+        input.classList.toggle('val-a1', nextVal === 'A');
+        input.classList.toggle('val-a2', nextVal === 'B');
+
+        saveState();
+        updateSingleStudentRowStats(stuId);
+        renderCounselingSection();
+        renderHomeroomSection();
+        renderAdminSection();
+      }
+    });
+
     input.addEventListener('input', (e) => {
       const stuId = e.target.getAttribute('data-stu-id');
       const ymd = e.target.getAttribute('data-ymd');
-      const val = e.target.value.toUpperCase().trim();
+      const rawVal = e.target.value;
+      const normVal = normalizeAttendanceValue(rawVal);
 
       if (!state.attendance[stuId]) {
         state.attendance[stuId] = {};
       }
 
-      if (val === '') {
+      if (normVal === 'A' || normVal === 'B') {
+        state.attendance[stuId][ymd] = normVal;
+        e.target.value = normVal; // 즉시 대문자 A 또는 B로 표기
+      } else if (normVal === '') {
         delete state.attendance[stuId][ymd];
+        e.target.value = '';
       } else {
-        state.attendance[stuId][ymd] = val;
+        // 타이핑 조합 중인 경우
+        state.attendance[stuId][ymd] = rawVal.toUpperCase();
       }
 
-      e.target.classList.toggle('val-a1', val === 'A');
-      e.target.classList.toggle('val-a2', val === 'B');
+      const curVal = state.attendance[stuId] ? (state.attendance[stuId][ymd] || '') : '';
+      e.target.classList.toggle('val-a1', curVal === 'A');
+      e.target.classList.toggle('val-a2', curVal === 'B');
 
       saveState();
       updateSingleStudentRowStats(stuId);
       renderCounselingSection();
+      renderHomeroomSection();
       renderAdminSection();
     });
 
     input.addEventListener('blur', (e) => {
-      const val = e.target.value.toUpperCase().trim();
-      if (val !== '' && val !== 'A' && val !== 'B') {
-        alert('출결 입력란에는 미인정결석(A), 그 외 결석(B)만 입력하거나 출석 시 빈칸으로 두세요.');
-        const stuId = e.target.getAttribute('data-stu-id');
-        const ymd = e.target.getAttribute('data-ymd');
+      const rawVal = e.target.value;
+      const normVal = normalizeAttendanceValue(rawVal);
+      const stuId = e.target.getAttribute('data-stu-id');
+      const ymd = e.target.getAttribute('data-ymd');
+
+      if (normVal === 'A' || normVal === 'B') {
+        e.target.value = normVal;
+        if (!state.attendance[stuId]) state.attendance[stuId] = {};
+        state.attendance[stuId][ymd] = normVal;
+        e.target.classList.toggle('val-a1', normVal === 'A');
+        e.target.classList.toggle('val-a2', normVal === 'B');
+      } else if (normVal === '') {
         e.target.value = '';
         if (state.attendance[stuId]) {
           delete state.attendance[stuId][ymd];
         }
         e.target.classList.remove('val-a1', 'val-a2');
-        saveState();
-        updateSingleStudentRowStats(stuId);
-        renderCounselingSection();
-        renderAdminSection();
       } else {
-        e.target.value = val;
+        alert('출결 입력란에는 미인정결석(A 또는 1, ㅁ), 그 외 결석(B 또는 2, ㅠ)만 입력하거나 출석 시 빈칸으로 두세요.\n(스페이스바를 누르면 빈칸 → A → B 순서로 쉽게 변경할 수 있습니다.)');
+        e.target.value = '';
+        if (state.attendance[stuId]) {
+          delete state.attendance[stuId][ymd];
+        }
+        e.target.classList.remove('val-a1', 'val-a2');
       }
+
+      saveState();
+      updateSingleStudentRowStats(stuId);
+      renderCounselingSection();
+      renderHomeroomSection();
+      renderAdminSection();
     });
   });
 }
@@ -2222,17 +2344,75 @@ async function initFirebaseIfConfigured() {
     badge.className = 'sync-badge cloud';
 
     onSnapshot(doc(firestoreDb, 'appData', 'mainState'), (snap) => {
+      // 로컬 쓰기로 인한 즉각적인 snapshot(hasPendingWrites: true)은 무시하여
+      // 타이핑 도중 포커스가 풀리거나 입력한 내용이 덮어씌워지는 현상 원천 차단
+      if (snap.metadata && snap.metadata.hasPendingWrites) {
+        return;
+      }
       if (snap.exists()) {
         const cloudData = snap.data();
         isSyncingFromCloud = true;
-        state.students = cloudData.students || state.students;
-        state.attendance = cloudData.attendance || {};
-        state.holidays = cloudData.holidays || {};
-        state.holidayReasons = cloudData.holidayReasons || {};
-        state.basicInfos = cloudData.basicInfos || {};
-        state.basicInfoHistory = cloudData.basicInfoHistory || {};
-        state.counselings = cloudData.counselings || [];
-        state.supportLinks = Array.isArray(cloudData.supportLinks) ? cloudData.supportLinks : [];
+
+        if (Array.isArray(cloudData.teachers) && cloudData.teachers.length > 0) {
+          state.teachers = cloudData.teachers;
+        }
+
+        if (cloudData.accountsData && typeof cloudData.accountsData === 'object') {
+          state.accountsData = cloudData.accountsData;
+        }
+
+        // 레거시 호환: accountsData['admin']이 없을 때 탑레벨 데이터 복원
+        if (!state.accountsData) state.accountsData = {};
+        if (!state.accountsData['admin'] && (cloudData.students || cloudData.attendance)) {
+          state.accountsData['admin'] = {
+            students: cloudData.students || [],
+            attendance: cloudData.attendance || {},
+            holidays: cloudData.holidays || {},
+            holidayReasons: cloudData.holidayReasons || {},
+            basicInfos: cloudData.basicInfos || {},
+            basicInfoHistory: cloudData.basicInfoHistory || {},
+            counselings: cloudData.counselings || []
+          };
+        }
+
+        // 출석 데이터 A, B 정규화
+        Object.keys(state.accountsData).forEach(accId => {
+          const acc = state.accountsData[accId];
+          if (acc && acc.attendance) {
+            Object.keys(acc.attendance).forEach(stuId => {
+              Object.keys(acc.attendance[stuId] || {}).forEach(ymd => {
+                const norm = normalizeAttendanceValue(acc.attendance[stuId][ymd]);
+                if (norm === 'A' || norm === 'B') {
+                  acc.attendance[stuId][ymd] = norm;
+                } else if (!norm) {
+                  delete acc.attendance[stuId][ymd];
+                }
+              });
+            });
+          }
+        });
+
+        // 현재 활성 계정에 최신 데이터 동기화
+        if (state.accountsData[currentActiveAccountId]) {
+          const acc = state.accountsData[currentActiveAccountId];
+          state.students = acc.students || [];
+          state.attendance = acc.attendance || {};
+          state.holidays = acc.holidays || {};
+          state.holidayReasons = acc.holidayReasons || {};
+          state.basicInfos = acc.basicInfos || {};
+          state.basicInfoHistory = acc.basicInfoHistory || {};
+          state.counselings = acc.counselings || [];
+        } else {
+          state.students = cloudData.students || state.students;
+          state.attendance = cloudData.attendance || state.attendance;
+          state.holidays = cloudData.holidays || state.holidays;
+          state.holidayReasons = cloudData.holidayReasons || state.holidayReasons;
+          state.basicInfos = cloudData.basicInfos || state.basicInfos;
+          state.basicInfoHistory = cloudData.basicInfoHistory || state.basicInfoHistory;
+          state.counselings = cloudData.counselings || state.counselings;
+        }
+
+        state.supportLinks = Array.isArray(cloudData.supportLinks) ? cloudData.supportLinks : state.supportLinks;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         renderAll();
         isSyncingFromCloud = false;
