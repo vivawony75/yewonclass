@@ -31,6 +31,10 @@
         <i data-lucide="heart-handshake"></i>
         <span>상담관리</span>
       </button>
+      <button class="nav-btn" data-target="section-support">
+        <i data-lucide="life-buoy"></i>
+        <span>지원</span>
+      </button>
       <button class="nav-btn" data-target="section-admin">
         <i data-lucide="shield-check"></i>
         <span>관리자</span>
@@ -139,7 +143,7 @@
     </section>
 
     <!-- ==================== 2. [상담관리] 섹션 ==================== -->
-    <section id="section-counseling" class="page-section pastel-green-theme">
+    <section id="section-counseling" class="page-section pastel-green-theme hidden">
       <div class="section-header">
         <div>
           <span class="section-tag tag-green">SECTION 02</span>
@@ -179,20 +183,47 @@
       </div>
     </section>
 
-    <!-- ==================== 3. [관리자] 섹션 ==================== -->
-    <section id="section-admin" class="page-section pastel-sky-theme">
+    <!-- ==================== 3. [지원] 섹션 ==================== -->
+    <section id="section-support" class="page-section pastel-orange-theme hidden">
       <div class="section-header">
         <div>
-          <span class="section-tag tag-sky">SECTION 03</span>
+          <span class="section-tag tag-orange">SECTION 03</span>
+          <h2 class="section-title">🤝 복지 및 청소년 지원 기관</h2>
+          <p class="section-desc">
+            학생 복지 지원 및 유관 기관(청소년상담복지센터, Wee센터, 복지관 등)의 누리집 목록입니다. 기관명 또는 사이트 주소를 누르시면 해당 홈페이지로 바로 연결됩니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- 지원 기관 카드 그리드 컨테이너 -->
+      <div id="support-links-container" class="support-links-container">
+        <!-- JS 렌더링 -->
+      </div>
+    </section>
+
+    <!-- ==================== 4. [관리자] 섹션 ==================== -->
+    <section id="section-admin" class="page-section pastel-sky-theme hidden">
+      <div class="section-header">
+        <div>
+          <span class="section-tag tag-sky">SECTION 04</span>
           <h2 class="section-title">🛠️ 관리자 메뉴</h2>
           <p class="section-desc">
             출석부 학생 명단(학번·이름) 관리, 전체 상담내역 조회 및 Word 다운로드, 출결 특이사항 해당자 집중 관리, 그리고 Firebase 연동을 설정합니다.
           </p>
         </div>
-        <div class="section-actions">
+        <div class="section-actions" style="display:flex; flex-wrap:wrap; gap:0.6rem;">
+          <button id="btn-backup-data" class="btn btn-green" title="현재 등록된 모든 학생, 출결, 기본자료, 상담내역을 백업 파일(.json)로 내 컴퓨터에 저장합니다.">
+            <i data-lucide="download"></i>
+            <span>💾 데이터 백업 저장 (.json)</span>
+          </button>
+          <button id="btn-restore-data" class="btn btn-sky" title="백업해둔 파일(.json)을 선택하여 모든 데이터를 즉시 복원합니다.">
+            <i data-lucide="upload"></i>
+            <span>📂 데이터 복원 / 불러오기</span>
+          </button>
+          <input type="file" id="inp-restore-file" accept=".json" class="hidden" />
           <button id="btn-open-firebase-modal" class="btn btn-yellow">
             <i data-lucide="cloud"></i>
-            <span>Firebase / GitHub 연동 설정</span>
+            <span>Firebase 연동 설정</span>
           </button>
         </div>
       </div>
@@ -297,6 +328,36 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- 관리자 3) [지원] 기관 링크 설정 -->
+        <div class="admin-panel pastel-subcard orange-border">
+          <div class="panel-header">
+            <div>
+              <h3>🤝 관리자 [지원] 기관 링크 설정</h3>
+              <p class="panel-sub">복지기관 및 유관 센터의 명칭과 사이트 주소(URL)를 등록·수정·삭제합니다. 저장 시 [지원] 메뉴에 즉시 반영됩니다.</p>
+            </div>
+            <button id="btn-add-support-row" class="btn btn-orange">
+              <i data-lucide="plus-circle"></i>
+              <span>+ 기관 추가</span>
+            </button>
+          </div>
+
+          <div class="scroll-10-rows">
+            <table class="data-table admin-support-table">
+              <thead>
+                <tr>
+                  <th style="width: 220px;">기관명</th>
+                  <th>사이트 주소 (URL)</th>
+                  <th style="width: 250px;">설명 / 비고 (선택)</th>
+                  <th style="width: 240px;">관리 (저장 / 수정 / 삭제 / 이동)</th>
+                </tr>
+              </thead>
+              <tbody id="admin-support-tbody">
+                <!-- JS 렌더링 -->
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -497,8 +558,15 @@
       </div>
       <div class="modal-body">
         <p class="modal-desc">
-          Firebase 프로젝트의 웹 앱 설정(JSON 또는 config 객체 값)을 입력하면 여러 기기에서 출석부와 상담 데이터가 실시간 동기화됩니다. 입력하지 않아도 브라우저 로컬 저장소에 안전하게 자동 저장됩니다.
+          Firebase 프로젝트의 웹 앱 설정을 입력하면 여러 기기(PC, 태블릿, 모바일)에서 출석부와 상담 데이터가 실시간으로 자동 동기화됩니다. 입력하지 않아도 브라우저 로컬 저장소에 안전하게 자동 저장됩니다.
         </p>
+
+        <!-- 간편 붙여넣기 상자 -->
+        <div class="form-section-box" style="background:#f1f8fc; border-color:#bce1f7;">
+          <label class="box-title" style="font-size:0.86rem; color:#1e6091;">📋 Firebase 설정 코드 통째로 붙여넣기 (가장 편리함)</label>
+          <textarea id="fb-raw-config-input" rows="3" style="width:100%; padding:0.5rem; font-family:monospace; font-size:0.78rem; border:1.5px solid #a5d8ff; border-radius:6px; resize:vertical;" placeholder="Firebase 콘솔에서 복사한 firebaseConfig = { ... } 코드를 여기에 그대로 붙여넣으면 아래 칸이 자동 완성됩니다."></textarea>
+        </div>
+
         <div class="form-field">
           <label>API Key</label>
           <input type="text" id="fb-api-key" placeholder="AIzaSy..." />
@@ -513,6 +581,7 @@
         </div>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-outline-sm" data-close="modal-firebase-config">닫기</button>
         <button type="button" id="btn-clear-firebase" class="btn btn-outline-sm">연동 해제 (로컬 모드)</button>
         <button type="button" id="btn-save-firebase" class="btn btn-primary">연동 저장 및 연결</button>
       </div>

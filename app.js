@@ -31,6 +31,18 @@ const STORAGE_KEY = 'MY_PRECIOUS_KIDS_STATE_V1';
 const FIREBASE_CONFIG_KEY = 'MY_PRECIOUS_KIDS_FIREBASE_CONFIG';
 const SESSION_AUTH_KEY = 'MY_PRECIOUS_KIDS_LOGGED_IN';
 
+// 기본 Firebase 설정 (설정값을 여기에 직접 입력해두면 브라우저를 처음 열어도 모든 기기에서 자동 연동됩니다)
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB-Gj6tjxKJsEgyapI7kCa85NBJ6P2n5E8",
+  authDomain: "yewonclass.firebaseapp.com",
+  databaseURL: "https://yewonclass-default-rtdb.firebaseio.com",
+  projectId: "yewonclass",
+  storageBucket: "yewonclass.firebasestorage.app",
+  messagingSenderId: "839399649835",
+  appId: "1:839399649835:web:d5bec5682e8db1f300b06e",
+  measurementId: "G-7EW548J01X"
+};
+
 // ============================================================================
 // 2. 초기 샘플 데이터 및 앱 상태
 // ============================================================================
@@ -54,7 +66,9 @@ function getInitialState() {
     // basicInfoHistory: { [studentId]: [ { date: "YYYY-MM-DD", changes: ["항목: 이전 -> 이후"] } ] }
     basicInfoHistory: {},
     // counselings: [{ id, studentId, studentNo, studentName, date, content }]
-    counselings: []
+    counselings: [],
+    // supportLinks: [{ id, name, url, desc, isEditing }] (복지 및 청소년 지원 유관 기관 링크)
+    supportLinks: []
   };
 }
 
@@ -109,12 +123,23 @@ function loadStateFromLocal() {
       holidayReasons: parsed.holidayReasons || {},
       basicInfos,
       basicInfoHistory: parsed.basicInfoHistory || {},
-      counselings
+      counselings,
+      supportLinks: Array.isArray(parsed.supportLinks) ? parsed.supportLinks : []
     };
   } catch (e) {
     console.warn('로컬 데이터 로드 실패, 기본값 사용:', e);
     return getInitialState();
   }
+}
+
+function normalizeUrl(url) {
+  if (!url) return '#';
+  let clean = String(url).trim();
+  if (!clean) return '#';
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = 'https://' + clean;
+  }
+  return clean;
 }
 
 async function saveState() {
@@ -131,6 +156,12 @@ async function saveState() {
         basicInfos: state.basicInfos || {},
         basicInfoHistory: state.basicInfoHistory || {},
         counselings: state.counselings,
+        supportLinks: (state.supportLinks || []).map(s => ({
+          id: s.id,
+          name: s.name,
+          url: s.url,
+          desc: s.desc
+        })),
         updatedAt: new Date().toISOString()
       });
     } catch (err) {
@@ -276,6 +307,7 @@ function calculateStudentAttendanceStats(studentId) {
 function renderAll() {
   renderAttendanceSection();
   renderCounselingSection();
+  renderSupportSection();
   renderAdminSection();
   if (window.lucide) {
     window.lucide.createIcons();
@@ -645,11 +677,65 @@ function renderStatsBadgesHtml(stats) {
   return badges.join(' ');
 }
 
-// -------------------- 5-3. [관리자] 렌더링 --------------------
+// -------------------- 5-3. [지원] 섹션 렌더링 --------------------
+function renderSupportSection() {
+  const container = document.getElementById('support-links-container');
+  if (!container) return;
+
+  const links = state.supportLinks || [];
+  if (links.length === 0) {
+    container.innerHTML = `
+      <div class="support-empty-card">
+        <div class="empty-icon">🏢</div>
+        <h3>등록된 지원 기관 정보가 없습니다</h3>
+        <p>
+          학생 복지 및 전문 상담 지원을 위해 상단 <strong>[관리자]</strong> 메뉴의 <strong>[지원 기관 링크 설정]</strong>에서 유관 기관(청소년상담복지센터, Wee센터, 복지관 등)을 등록해보세요.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = links.map(item => {
+    const cleanUrl = normalizeUrl(item.url);
+    const descHtml = item.desc ? `<div class="support-card-desc">${escapeHtml(item.desc)}</div>` : '';
+    return `
+      <div class="support-card">
+        <div class="support-card-top">
+          <div class="support-card-header">
+            <span class="support-badge"><i data-lucide="building-2" style="width:13px;height:13px;"></i> 유관기관</span>
+          </div>
+          <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="support-card-name" title="새 탭에서 사이트 열기">
+            <span>${escapeHtml(item.name || '기관명 미입력')}</span>
+            <i data-lucide="external-link" style="width:16px;height:16px; flex-shrink:0;"></i>
+          </a>
+          <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="support-card-url" title="새 탭에서 사이트 열기">
+            <i data-lucide="globe" style="width:14px;height:14px; flex-shrink:0;"></i>
+            <span>${escapeHtml(item.url || '-')}</span>
+          </a>
+          ${descHtml}
+        </div>
+        <div class="support-card-footer">
+          <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="btn-support-visit">
+            <span>홈페이지 바로가기</span>
+            <i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i>
+          </a>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+// -------------------- 5-4. [관리자] 렌더링 --------------------
 function renderAdminSection() {
   renderAdminStudentsTable();
   renderAdminCounselTable();
   renderAdminAttendanceCareTable();
+  renderAdminSupportTable();
 }
 
 function renderAdminStudentsTable() {
@@ -902,6 +988,191 @@ function renderAdminAttendanceCareTable() {
       downloadStudentPersonalWord(stuId);
     });
   });
+}
+
+function renderAdminSupportTable() {
+  const tbody = document.getElementById('admin-support-tbody');
+  if (!tbody) return;
+
+  const links = state.supportLinks || [];
+  if (links.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" style="padding: 1.6rem; color: #6c757d; text-align: center;">
+          등록된 지원 기관 링크가 없습니다. 우측 상단의 <strong>[+ 기관 추가]</strong> 버튼을 눌러 기관명과 사이트 주소를 등록하세요.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = links.map(item => {
+    const editing = Boolean(item.isEditing);
+    const cleanUrl = normalizeUrl(item.url);
+    if (editing) {
+      return `
+        <tr data-admin-sup="${item.id}">
+          <td>
+            <input
+              type="text"
+              class="inp-support-name"
+              value="${escapeHtml(item.name)}"
+              placeholder="기관명 입력 (예: 청소년상담복지센터)"
+            />
+          </td>
+          <td>
+            <input
+              type="text"
+              class="inp-support-url"
+              value="${escapeHtml(item.url)}"
+              placeholder="사이트 주소 입력 (예: www.kyci.or.kr)"
+            />
+          </td>
+          <td>
+            <input
+              type="text"
+              class="inp-support-desc"
+              value="${escapeHtml(item.desc || '')}"
+              placeholder="설명 또는 비고 입력 (선택)"
+            />
+          </td>
+          <td>
+            <div class="row-action-btns">
+              <button class="btn btn-orange btn-save-sup" data-id="${item.id}" style="padding:0.38rem 0.7rem; font-size:0.8rem;">
+                저장
+              </button>
+              <button class="btn btn-outline-sm btn-cancel-sup" data-id="${item.id}">
+                취소
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    return `
+      <tr data-admin-sup="${item.id}">
+        <td style="text-align:left;">
+          <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="support-table-link" title="새 창에서 열기">
+            <strong>${escapeHtml(item.name)}</strong>
+            <i data-lucide="external-link" style="width:13px;height:13px;"></i>
+          </a>
+        </td>
+        <td style="text-align:left;">
+          <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" style="color:#1971c2; word-break:break-all;" title="새 창에서 열기">
+            ${escapeHtml(item.url)}
+          </a>
+        </td>
+        <td style="text-align:left; color:#495057;">
+          ${escapeHtml(item.desc || '-')}
+        </td>
+        <td>
+          <div class="row-action-btns">
+            <button class="btn btn-outline-sm btn-edit-sup" data-id="${item.id}">
+              수정
+            </button>
+            <button class="btn-danger-sm btn-del-sup" data-id="${item.id}">
+              삭제
+            </button>
+            <button class="btn btn-sky btn-open-sup" data-url="${cleanUrl}" style="padding:0.38rem 0.7rem; font-size:0.8rem;">
+              이동 ↗
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // 저장 버튼
+  tbody.querySelectorAll('.btn-save-sup').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const row = tbody.querySelector(`tr[data-admin-sup="${id}"]`);
+      if (!row) return;
+
+      const nameVal = row.querySelector('.inp-support-name').value.trim();
+      const urlVal = row.querySelector('.inp-support-url').value.trim();
+      const descVal = row.querySelector('.inp-support-desc').value.trim();
+
+      if (!nameVal || !urlVal) {
+        alert('기관명과 사이트 주소를 모두 입력해주세요.');
+        return;
+      }
+
+      const item = state.supportLinks.find(s => s.id === id);
+      if (item) {
+        item.name = nameVal;
+        item.url = urlVal;
+        item.desc = descVal;
+        item.isEditing = false;
+        saveState();
+        renderAll();
+      }
+    });
+  });
+
+  // 취소 버튼
+  tbody.querySelectorAll('.btn-cancel-sup').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const item = state.supportLinks.find(s => s.id === id);
+      if (item) {
+        if (!item.name && !item.url) {
+          state.supportLinks = state.supportLinks.filter(s => s.id !== id);
+        } else {
+          item.isEditing = false;
+        }
+        renderAdminSupportTable();
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
+  });
+
+  // 수정 버튼
+  tbody.querySelectorAll('.btn-edit-sup').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const item = state.supportLinks.find(s => s.id === id);
+      if (item) {
+        item.isEditing = true;
+        renderAdminSupportTable();
+        const row = tbody.querySelector(`tr[data-admin-sup="${id}"]`);
+        if (row) {
+          const inp = row.querySelector('.inp-support-name');
+          if (inp) inp.focus();
+        }
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
+  });
+
+  // 삭제 버튼
+  tbody.querySelectorAll('.btn-del-sup').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const item = state.supportLinks.find(s => s.id === id);
+      if (!item) return;
+      if (!confirm(`[${item.name || '해당'}] 기관 링크를 삭제하시겠습니까?`)) return;
+
+      state.supportLinks = state.supportLinks.filter(s => s.id !== id);
+      saveState();
+      renderAll();
+    });
+  });
+
+  // 이동 ↗ 버튼
+  tbody.querySelectorAll('.btn-open-sup').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const url = btn.getAttribute('data-url');
+      if (url && url !== '#') {
+        window.open(url, '_blank');
+      }
+    });
+  });
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
 }
 
 // ============================================================================
@@ -1377,9 +1648,28 @@ function downloadAllCareWord() {
 // 8. Firebase 클라우드 실시간 연동 (선택적 설정)
 // ============================================================================
 async function initFirebaseIfConfigured() {
-  const raw = localStorage.getItem(FIREBASE_CONFIG_KEY);
   const badge = document.getElementById('sync-status');
-  if (!raw) {
+  let cfg = null;
+  const raw = localStorage.getItem(FIREBASE_CONFIG_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      // 더미/예시 플레이스홀더 값이 아닐 때만 사용
+      if (parsed.apiKey && !parsed.apiKey.includes('...') && parsed.projectId && !parsed.projectId.includes('...')) {
+        cfg = parsed;
+      }
+    } catch (e) {}
+  }
+
+  // 로컬스토리지에 유효한 설정이 없으면 DEFAULT_FIREBASE_CONFIG 사용
+  if (!cfg && DEFAULT_FIREBASE_CONFIG.apiKey && DEFAULT_FIREBASE_CONFIG.projectId) {
+    cfg = { ...DEFAULT_FIREBASE_CONFIG };
+    try {
+      localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(cfg));
+    } catch (e) {}
+  }
+
+  if (!cfg || !cfg.apiKey || !cfg.projectId) {
     badge.textContent = '로컬 저장 모드';
     badge.className = 'sync-badge local';
     firestoreDb = null;
@@ -1387,9 +1677,6 @@ async function initFirebaseIfConfigured() {
   }
 
   try {
-    const cfg = JSON.parse(raw);
-    if (!cfg.apiKey || !cfg.projectId) return;
-
     const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
     const { getFirestore, doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
 
@@ -1410,12 +1697,17 @@ async function initFirebaseIfConfigured() {
         state.basicInfos = cloudData.basicInfos || {};
         state.basicInfoHistory = cloudData.basicInfoHistory || {};
         state.counselings = cloudData.counselings || [];
+        state.supportLinks = Array.isArray(cloudData.supportLinks) ? cloudData.supportLinks : [];
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         renderAll();
         isSyncingFromCloud = false;
       } else {
         saveState();
       }
+    }, (error) => {
+      console.error('Firebase onSnapshot 오류 (권한/보안규칙 확인 필요):', error);
+      badge.textContent = '⚠️ Firebase 보안규칙 확인 필요';
+      badge.className = 'sync-badge local';
     });
   } catch (err) {
     console.error('Firebase 초기화 실패:', err);
@@ -1436,6 +1728,23 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+function switchPage(targetId) {
+  const sections = ['section-attendance', 'section-counseling', 'section-support', 'section-admin'];
+  sections.forEach(id => {
+    const sec = document.getElementById(id);
+    if (sec) {
+      sec.classList.toggle('hidden', id !== targetId);
+    }
+  });
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-target') === targetId);
+  });
+  window.scrollTo({ top: 0, behavior: 'auto' });
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
 function setLoggedInUI(isLoggedIn) {
   const loginView = document.getElementById('login-view');
   const appContent = document.getElementById('app-content');
@@ -1447,6 +1756,7 @@ function setLoggedInUI(isLoggedIn) {
     appContent.classList.remove('hidden');
     mainNav.classList.remove('hidden');
     adminInfo.classList.remove('hidden');
+    switchPage('section-attendance');
     renderAll();
   } else {
     loginView.classList.remove('hidden');
@@ -1488,35 +1798,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setLoggedInUI(false);
   });
 
-  // 2) 상단 메뉴 클릭 시 해당 섹션으로 부드럽게 스크롤 (스크롤형 웹앱)
+  // 2) 상단 메뉴 클릭 시 한 페이지씩 보이는 형태 (탭 페이지 전환)
   const navBtns = document.querySelectorAll('.nav-btn');
   navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      navBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
       const targetId = btn.getAttribute('data-target');
-      const section = document.getElementById(targetId);
-      if (section) {
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-  });
-
-  // 스크롤 위치에 따른 상단 메뉴 활성화 동기화
-  window.addEventListener('scroll', () => {
-    const sections = ['section-attendance', 'section-counseling', 'section-admin'];
-    let currentId = sections[0];
-    for (const id of sections) {
-      const el = document.getElementById(id);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        if (rect.top <= 160) {
-          currentId = id;
-        }
-      }
-    }
-    navBtns.forEach(b => {
-      b.classList.toggle('active', b.getAttribute('data-target') === currentId);
+      switchPage(targetId);
     });
   });
 
@@ -1745,6 +2032,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 5-B) 관리자 -> [지원] 기관 행 추가 버튼
+  const btnAddSup = document.getElementById('btn-add-support-row');
+  if (btnAddSup) {
+    btnAddSup.addEventListener('click', () => {
+      const newId = 'sup-' + Date.now();
+      if (!state.supportLinks) state.supportLinks = [];
+      state.supportLinks.push({
+        id: newId,
+        name: '',
+        url: '',
+        desc: '',
+        isEditing: true
+      });
+      renderAdminSupportTable();
+      if (window.lucide) window.lucide.createIcons();
+      const row = document.querySelector(`tr[data-admin-sup="${newId}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const inp = row.querySelector('.inp-support-name');
+        if (inp) inp.focus();
+      }
+    });
+  }
+
   // 6) 관리자 -> [출결관리] 뷰 토글 및 전체 다운로드
   const careView = document.getElementById('admin-attendance-care-view');
   const counselListView = document.getElementById('admin-counsel-list-view');
@@ -1791,19 +2102,125 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 6-B) 전체 데이터 백업 저장 (.json 파일 다운로드)
+  document.getElementById('btn-backup-data').addEventListener('click', () => {
+    const backupData = {
+      app: '내 금쪽이들',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      students: state.students,
+      attendance: state.attendance,
+      holidays: state.holidays,
+      holidayReasons: state.holidayReasons || {},
+      basicInfos: state.basicInfos || {},
+      basicInfoHistory: state.basicInfoHistory || {},
+      counselings: state.counselings,
+      supportLinks: state.supportLinks || []
+    };
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `내금쪽이들_전체데이터_백업_${formatDateYMD(new Date())}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert('전체 데이터 백업 파일이 다운로드되었습니다!\n이 파일을 이메일, 카카오톡 나에게 보내기, USB 등에 저장해 두시면 언제든 다른 컴퓨터나 브라우저에서 그대로 복원할 수 있습니다.');
+  });
+
+  // 6-C) 데이터 복원 / 불러오기 (.json 파일 선택)
+  const inpRestore = document.getElementById('inp-restore-file');
+  document.getElementById('btn-restore-data').addEventListener('click', () => {
+    inpRestore.click();
+  });
+
+  inpRestore.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (!parsed.students && !parsed.attendance && !parsed.counselings) {
+          alert('올바른 [내 금쪽이들] 백업 파일(.json)이 아닙니다.');
+          return;
+        }
+
+        if (!confirm('백업 파일의 데이터를 불러오시겠습니까?\n현재 브라우저의 출결 및 상담 데이터가 백업 파일 내용으로 복원됩니다.')) {
+          inpRestore.value = '';
+          return;
+        }
+
+        state.students = Array.isArray(parsed.students) ? parsed.students : state.students;
+        state.attendance = parsed.attendance || {};
+        state.holidays = parsed.holidays || {};
+        state.holidayReasons = parsed.holidayReasons || {};
+        state.basicInfos = parsed.basicInfos || {};
+        state.basicInfoHistory = parsed.basicInfoHistory || {};
+        state.counselings = Array.isArray(parsed.counselings) ? parsed.counselings : [];
+        state.supportLinks = Array.isArray(parsed.supportLinks) ? parsed.supportLinks : [];
+
+        saveState();
+        renderAll();
+        alert('데이터 복원이 성공적으로 완료되었습니다!');
+      } catch (err) {
+        alert('파일을 읽는 중 오류가 발생했습니다: ' + err.message);
+      } finally {
+        inpRestore.value = '';
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  });
+
   // 7) Firebase 연동 설정 모달
   document.getElementById('btn-open-firebase-modal').addEventListener('click', () => {
+    let cfg = null;
     const raw = localStorage.getItem(FIREBASE_CONFIG_KEY);
     if (raw) {
       try {
-        const cfg = JSON.parse(raw);
-        document.getElementById('fb-api-key').value = cfg.apiKey || '';
-        document.getElementById('fb-project-id').value = cfg.projectId || '';
-        document.getElementById('fb-app-id').value = cfg.appId || '';
+        const parsed = JSON.parse(raw);
+        if (parsed.apiKey && !parsed.apiKey.includes('...')) {
+          cfg = parsed;
+        }
       } catch (e) {}
     }
+    if (!cfg) cfg = DEFAULT_FIREBASE_CONFIG;
+
+    document.getElementById('fb-api-key').value = cfg.apiKey || '';
+    document.getElementById('fb-project-id').value = cfg.projectId || '';
+    document.getElementById('fb-app-id').value = cfg.appId || '';
+
+    const rawInp = document.getElementById('fb-raw-config-input');
+    if (rawInp) rawInp.value = '';
     document.getElementById('modal-firebase-config').classList.remove('hidden');
   });
+
+  // Firebase 설정 코드 전체 붙여넣기 시 자동 추출/완성
+  const rawConfigInput = document.getElementById('fb-raw-config-input');
+  if (rawConfigInput) {
+    rawConfigInput.addEventListener('input', (e) => {
+      const text = e.target.value.trim();
+      if (!text) return;
+
+      const extractVal = (key) => {
+        const regex = new RegExp(`['"]?${key}['"]?\\s*:\\s*['"]([^'"]+)['"]`, 'i');
+        const m = text.match(regex);
+        return m ? m[1].trim() : '';
+      };
+
+      const apiKey = extractVal('apiKey');
+      const projectId = extractVal('projectId');
+      const appId = extractVal('appId');
+
+      if (apiKey) document.getElementById('fb-api-key').value = apiKey;
+      if (projectId) document.getElementById('fb-project-id').value = projectId;
+      if (appId) document.getElementById('fb-app-id').value = appId;
+    });
+  }
 
   document.getElementById('btn-save-firebase').addEventListener('click', () => {
     const apiKey = document.getElementById('fb-api-key').value.trim();
