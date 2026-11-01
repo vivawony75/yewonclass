@@ -30,6 +30,7 @@ const KOREAN_PUBLIC_HOLIDAYS_MMDD = new Set([
 const STORAGE_KEY = 'MY_PRECIOUS_KIDS_STATE_V1';
 const FIREBASE_CONFIG_KEY = 'MY_PRECIOUS_KIDS_FIREBASE_CONFIG';
 const SESSION_AUTH_KEY = 'MY_PRECIOUS_KIDS_LOGGED_IN';
+const SESSION_CURRENT_ACCOUNT_KEY = 'MY_PRECIOUS_KIDS_CURRENT_ACCOUNT';
 
 // 기본 Firebase 설정 (설정값을 여기에 직접 입력해두면 브라우저를 처음 열어도 모든 기기에서 자동 연동됩니다)
 const DEFAULT_FIREBASE_CONFIG = {
@@ -44,10 +45,26 @@ const DEFAULT_FIREBASE_CONFIG = {
 };
 
 // ============================================================================
-// 2. 초기 샘플 데이터 및 앱 상태
+// 2. 초기 샘플 데이터 및 계정별 독립 데이터 관리 (각 계정마다 새로운 양식 제공)
 // ============================================================================
-function getInitialState() {
+function createBlankAccountData(teacherName = '') {
   return {
+    students: [
+      { id: 'stu-' + Date.now() + '-1', studentNo: '10101', name: '', isEditing: true },
+      { id: 'stu-' + Date.now() + '-2', studentNo: '10102', name: '', isEditing: true },
+      { id: 'stu-' + Date.now() + '-3', studentNo: '10103', name: '', isEditing: true }
+    ],
+    attendance: {},
+    holidays: {},
+    holidayReasons: {},
+    basicInfos: {},
+    basicInfoHistory: {},
+    counselings: []
+  };
+}
+
+function getInitialState() {
+  const adminAccountData = {
     students: [
       { id: 'stu-1', studentNo: '10101', name: '김금쪽', isEditing: false },
       { id: 'stu-2', studentNo: '10102', name: '이사랑', isEditing: false },
@@ -55,21 +72,106 @@ function getInitialState() {
       { id: 'stu-4', studentNo: '10104', name: '최햇살', isEditing: false },
       { id: 'stu-5', studentNo: '10105', name: '정바름', isEditing: false }
     ],
-    // attendance: { [studentId]: { "YYYY-MM-DD": "A" | "B" } }
     attendance: {},
-    // holidays: { "YYYY-MM-DD": true } (체크박스로 지정한 학교 재량휴업일/공휴일)
     holidays: {},
-    // holidayReasons: { "YYYY-MM-DD": "공휴일/휴업 사유 또는 행사명" }
     holidayReasons: {},
-    // basicInfos: { [studentId]: { familyTypes, familyEtc, economicStatus, careerHopes, careerEtc, attitudePositive, attitudePosEtc, problemBehaviors, attitudeNegEtc, guidanceAuto, guidanceCustom } }
     basicInfos: {},
-    // basicInfoHistory: { [studentId]: [ { date: "YYYY-MM-DD", changes: ["항목: 이전 -> 이후"] } ] }
     basicInfoHistory: {},
-    // counselings: [{ id, studentId, studentNo, studentName, date, content }]
-    counselings: [],
-    // supportLinks: [{ id, name, url, desc, isEditing }] (복지 및 청소년 지원 유관 기관 링크)
-    supportLinks: []
+    counselings: []
   };
+
+  const sampleTeacher1Data = {
+    students: [
+      { id: 'stu-tch1-1', studentNo: '10101', name: '강하늘', isEditing: false },
+      { id: 'stu-tch1-2', studentNo: '10102', name: '윤바다', isEditing: false },
+      { id: 'stu-tch1-3', studentNo: '10103', name: '송샛별', isEditing: false }
+    ],
+    attendance: {},
+    holidays: {},
+    holidayReasons: {},
+    basicInfos: {},
+    basicInfoHistory: {},
+    counselings: []
+  };
+
+  const sampleTeacher2Data = {
+    students: [
+      { id: 'stu-tch2-1', studentNo: '10201', name: '조아라', isEditing: false },
+      { id: 'stu-tch2-2', studentNo: '10202', name: '한결음', isEditing: false }
+    ],
+    attendance: {},
+    holidays: {},
+    holidayReasons: {},
+    basicInfos: {},
+    basicInfoHistory: {},
+    counselings: []
+  };
+
+  return {
+    teachers: [
+      { id: 'tch-1', name: '김선생', pw: '1234', note: '1학년 1반', isEditing: false },
+      { id: 'tch-2', name: '이선생', pw: '1234', note: '1학년 2반', isEditing: false }
+    ],
+    accountsData: {
+      'admin': adminAccountData,
+      'tch-1': sampleTeacher1Data,
+      'tch-2': sampleTeacher2Data
+    },
+    supportLinks: [],
+    // Active pointers (현재 활성 계정의 데이터를 가리켜 기존 코드 100% 호환)
+    students: adminAccountData.students,
+    attendance: adminAccountData.attendance,
+    holidays: adminAccountData.holidays,
+    holidayReasons: adminAccountData.holidayReasons,
+    basicInfos: adminAccountData.basicInfos,
+    basicInfoHistory: adminAccountData.basicInfoHistory,
+    counselings: adminAccountData.counselings
+  };
+}
+
+let currentActiveAccountId = 'admin';
+
+function getCurrentAccount() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_CURRENT_ACCOUNT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function syncCurrentToAccountData() {
+  if (!state.accountsData) state.accountsData = {};
+  state.accountsData[currentActiveAccountId] = {
+    students: state.students || [],
+    attendance: state.attendance || {},
+    holidays: state.holidays || {},
+    holidayReasons: state.holidayReasons || {},
+    basicInfos: state.basicInfos || {},
+    basicInfoHistory: state.basicInfoHistory || {},
+    counselings: state.counselings || []
+  };
+}
+
+function applyActiveAccount(accountId) {
+  syncCurrentToAccountData();
+
+  if (!state.accountsData) state.accountsData = {};
+  if (!state.accountsData[accountId]) {
+    const tch = (state.teachers || []).find(t => t.id === accountId);
+    state.accountsData[accountId] = createBlankAccountData(tch ? tch.name : '');
+  }
+
+  currentActiveAccountId = accountId;
+  const acc = state.accountsData[accountId];
+
+  state.students = acc.students || [];
+  state.attendance = acc.attendance || {};
+  state.holidays = acc.holidays || {};
+  state.holidayReasons = acc.holidayReasons || {};
+  state.basicInfos = acc.basicInfos || {};
+  state.basicInfoHistory = acc.basicInfoHistory || {};
+  state.counselings = acc.counselings || [];
 }
 
 let state = loadStateFromLocal();
@@ -83,48 +185,58 @@ function loadStateFromLocal() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return getInitialState();
     const parsed = JSON.parse(raw);
-    const att = parsed.attendance || {};
-    // 기존 A1/A2 입력값이 남아있을 경우 A/B로 자동 변환
-    Object.keys(att).forEach(stuId => {
-      Object.keys(att[stuId] || {}).forEach(ymd => {
-        if (att[stuId][ymd] === 'A1') att[stuId][ymd] = 'A';
-        else if (att[stuId][ymd] === 'A2') att[stuId][ymd] = 'B';
+
+    const initial = getInitialState();
+    const teachers = Array.isArray(parsed.teachers) && parsed.teachers.length > 0
+      ? parsed.teachers
+      : initial.teachers;
+    const accountsData = parsed.accountsData || {};
+
+    // 1) 기존 단일 state 구조에서 accountsData['admin']으로의 자동 마이그레이션
+    if (!accountsData['admin']) {
+      const att = parsed.attendance || {};
+      Object.keys(att).forEach(stuId => {
+        Object.keys(att[stuId] || {}).forEach(ymd => {
+          if (att[stuId][ymd] === 'A1') att[stuId][ymd] = 'A';
+          else if (att[stuId][ymd] === 'A2') att[stuId][ymd] = 'B';
+        });
       });
-    });
 
-    const counselings = Array.isArray(parsed.counselings) ? parsed.counselings : [];
-    const basicInfos = parsed.basicInfos || {};
+      accountsData['admin'] = {
+        students: Array.isArray(parsed.students) && parsed.students.length > 0 ? parsed.students : initial.accountsData['admin'].students,
+        attendance: att,
+        holidays: parsed.holidays || {},
+        holidayReasons: parsed.holidayReasons || {},
+        basicInfos: parsed.basicInfos || {},
+        basicInfoHistory: parsed.basicInfoHistory || {},
+        counselings: Array.isArray(parsed.counselings) ? parsed.counselings : []
+      };
+    }
 
-    // 기존 상담 기록에 가정형태 등 기본자료가 들어있던 경우 학생별 기본자료(basicInfos)로 자동 이관
-    counselings.forEach(c => {
-      if (c.studentId && !basicInfos[c.studentId]) {
-        if (c.familyTypes || c.economicStatus || c.careerHopes || c.problemBehaviors) {
-          basicInfos[c.studentId] = {
-            familyTypes: c.familyTypes || [],
-            familyEtc: c.familyEtc || '',
-            economicStatus: c.economicStatus || '중',
-            careerHopes: c.careerHopes || [],
-            careerEtc: c.careerEtc || '',
-            attitudePositive: c.attitudePositive || [],
-            attitudePosEtc: c.attitudePosEtc || '',
-            problemBehaviors: c.problemBehaviors || [],
-            attitudeNegEtc: c.attitudeNegEtc || '',
-            guidanceAuto: c.guidanceAuto || [],
-            guidanceCustom: c.guidanceCustom || ''
-          };
-        }
+    // 2) 등록된 각 교사별 accountsData가 없으면 기본 양식 생성
+    teachers.forEach(tch => {
+      if (!accountsData[tch.id]) {
+        accountsData[tch.id] = initial.accountsData[tch.id] || createBlankAccountData(tch.name);
       }
     });
 
+    const currentAcc = getCurrentAccount();
+    const targetAccountId = (currentAcc && accountsData[currentAcc.id]) ? currentAcc.id : 'admin';
+    currentActiveAccountId = targetAccountId;
+
+    const activeAcc = accountsData[targetAccountId];
+
     return {
-      students: Array.isArray(parsed.students) ? parsed.students : getInitialState().students,
-      attendance: att,
-      holidays: parsed.holidays || {},
-      holidayReasons: parsed.holidayReasons || {},
-      basicInfos,
-      basicInfoHistory: parsed.basicInfoHistory || {},
-      counselings,
-      supportLinks: Array.isArray(parsed.supportLinks) ? parsed.supportLinks : []
+      teachers,
+      accountsData,
+      supportLinks: Array.isArray(parsed.supportLinks) ? parsed.supportLinks : [],
+      students: activeAcc.students || [],
+      attendance: activeAcc.attendance || {},
+      holidays: activeAcc.holidays || {},
+      holidayReasons: activeAcc.holidayReasons || {},
+      basicInfos: activeAcc.basicInfos || {},
+      basicInfoHistory: activeAcc.basicInfoHistory || {},
+      counselings: activeAcc.counselings || []
     };
   } catch (e) {
     console.warn('로컬 데이터 로드 실패, 기본값 사용:', e);
@@ -143,19 +255,15 @@ function normalizeUrl(url) {
 }
 
 async function saveState() {
+  syncCurrentToAccountData();
   // 편집 상태 플래그를 제외한 순수 데이터 저장
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (firestoreDb && !isSyncingFromCloud) {
     try {
       const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
       await setDoc(doc(firestoreDb, 'appData', 'mainState'), {
-        students: state.students.map(s => ({ id: s.id, studentNo: s.studentNo, name: s.name })),
-        attendance: state.attendance,
-        holidays: state.holidays,
-        holidayReasons: state.holidayReasons || {},
-        basicInfos: state.basicInfos || {},
-        basicInfoHistory: state.basicInfoHistory || {},
-        counselings: state.counselings,
+        teachers: state.teachers || [],
+        accountsData: state.accountsData || {},
         supportLinks: (state.supportLinks || []).map(s => ({
           id: s.id,
           name: s.name,
@@ -308,7 +416,9 @@ function renderAll() {
   renderAttendanceSection();
   renderCounselingSection();
   renderSupportSection();
+  renderHomeroomSection();
   renderAdminSection();
+  updateClassSwitcherOptions();
   if (window.lucide) {
     window.lucide.createIcons();
   }
@@ -730,12 +840,432 @@ function renderSupportSection() {
   }
 }
 
+// -------------------- 5-3-B. [담임관리] 렌더링 --------------------
+function renderHomeroomSection() {
+  renderHomeroomStudentsTable();
+  renderHomeroomCounselTable();
+  renderHomeroomAttendanceCareTable();
+  updateHomeroomBanner();
+}
+
+function updateHomeroomBanner() {
+  const badge = document.getElementById('homeroom-current-class-badge');
+  if (!badge) return;
+  if (currentActiveAccountId === 'admin') {
+    badge.textContent = '👑 관리자 학급 관리';
+  } else {
+    const tch = (state.teachers || []).find(t => t.id === currentActiveAccountId);
+    badge.textContent = tch ? `👩‍🏫 ${tch.name} 선생님 (${tch.note || '학급'}) 관리` : '👩‍🏫 담임교사 학급 관리';
+  }
+}
+
+function updateClassSwitcherOptions() {
+  const select = document.getElementById('select-active-class');
+  if (!select) return;
+
+  const options = [
+    `<option value="admin">👑 관리자 본인 학급</option>`
+  ];
+
+  (state.teachers || []).forEach(tch => {
+    options.push(`<option value="${tch.id}">👩‍🏫 ${escapeHtml(tch.name)} 선생님 (${escapeHtml(tch.note || '학급')})</option>`);
+  });
+
+  select.innerHTML = options.join('');
+  select.value = currentActiveAccountId;
+}
+
+function renderHomeroomStudentsTable() {
+  const tbody = document.getElementById('homeroom-student-tbody');
+  if (!tbody) return;
+
+  if (state.students.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="padding: 1.5rem; color: #6c757d;">
+          [+ 행 추가] 버튼을 눌러 학급 학생의 학번과 이름을 등록하세요.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = state.students.map(stu => {
+    const editing = Boolean(stu.isEditing);
+    return `
+      <tr data-homeroom-stu="${stu.id}">
+        <td>
+          <input
+            type="text"
+            class="admin-input inp-stu-no"
+            value="${escapeHtml(stu.studentNo)}"
+            placeholder="학번 입력 (예: 10101)"
+            ${editing ? '' : 'disabled'}
+          />
+        </td>
+        <td>
+          <input
+            type="text"
+            class="admin-input inp-stu-name"
+            value="${escapeHtml(stu.name)}"
+            placeholder="이름 입력 (예: 홍길동)"
+            ${editing ? '' : 'disabled'}
+          />
+        </td>
+        <td>
+          <div class="row-action-btns">
+            <button class="btn btn-primary btn-save-homeroom-stu" data-id="${stu.id}" style="padding:0.38rem 0.7rem; font-size:0.8rem;">
+              저장
+            </button>
+            <button class="btn btn-outline-sm btn-edit-homeroom-stu" data-id="${stu.id}">
+              수정
+            </button>
+            <button class="btn-danger-sm btn-del-homeroom-stu" data-id="${stu.id}">
+              삭제
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // 저장 버튼
+  tbody.querySelectorAll('.btn-save-homeroom-stu').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const row = tbody.querySelector(`tr[data-homeroom-stu="${id}"]`);
+      const noVal = row.querySelector('.inp-stu-no').value.trim();
+      const nameVal = row.querySelector('.inp-stu-name').value.trim();
+
+      if (!noVal || !nameVal) {
+        alert('학번과 이름을 모두 입력해주세요.');
+        return;
+      }
+
+      const stu = state.students.find(s => s.id === id);
+      if (stu) {
+        stu.studentNo = noVal;
+        stu.name = nameVal;
+        stu.isEditing = false;
+
+        // 상담 내역의 학번/이름도 동기화
+        state.counselings.forEach(c => {
+          if (c.studentId === id) {
+            c.studentNo = noVal;
+            c.studentName = nameVal;
+          }
+        });
+
+        saveState();
+        renderAll();
+      }
+    });
+  });
+
+  // 수정 버튼
+  tbody.querySelectorAll('.btn-edit-homeroom-stu').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const stu = state.students.find(s => s.id === id);
+      if (stu) {
+        stu.isEditing = true;
+        renderHomeroomStudentsTable();
+        renderAdminStudentsTable();
+        const row = tbody.querySelector(`tr[data-homeroom-stu="${id}"]`);
+        if (row) row.querySelector('.inp-stu-no')?.focus();
+      }
+    });
+  });
+
+  // 삭제 버튼
+  tbody.querySelectorAll('.btn-del-homeroom-stu').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const stu = state.students.find(s => s.id === id);
+      if (!stu) return;
+      if (!confirm(`[${stu.studentNo} ${stu.name}] 학생을 명단에서 삭제하시겠습니까?`)) return;
+
+      state.students = state.students.filter(s => s.id !== id);
+      delete state.attendance[id];
+      if (state.basicInfos) delete state.basicInfos[id];
+      state.counselings = state.counselings.filter(c => c.studentId !== id);
+      saveState();
+      renderAll();
+    });
+  });
+}
+
+function renderHomeroomCounselTable() {
+  const tbody = document.getElementById('homeroom-counsel-tbody');
+  if (!tbody) return;
+
+  if (state.counselings.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding: 1.8rem; color: #6c757d;">
+          아직 작성된 상담 내역이 없습니다. [상담관리] 메뉴에서 상담을 등록해보세요.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const sorted = [...state.counselings].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  tbody.innerHTML = sorted.map(item => {
+    const shortContent = item.content.length > 32 ? item.content.slice(0, 32) + '...' : item.content;
+    return `
+      <tr>
+        <td>${escapeHtml(item.date)}</td>
+        <td><strong>${escapeHtml(item.studentNo)}</strong></td>
+        <td><strong>${escapeHtml(item.studentName)}</strong></td>
+        <td style="text-align:left;">${escapeHtml(shortContent)}</td>
+        <td>
+          <div class="row-action-btns">
+            <button class="btn btn-sky btn-view-homeroom-counsel" data-cid="${item.id}" style="padding:0.35rem 0.65rem; font-size:0.8rem;">
+              내용보기
+            </button>
+            <button class="btn btn-yellow btn-dl-homeroom-counsel" data-cid="${item.id}" style="padding:0.35rem 0.65rem; font-size:0.8rem;">
+              다운로드
+            </button>
+            <button class="btn-danger-sm btn-del-homeroom-counsel" data-cid="${item.id}">
+              삭제
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.btn-view-homeroom-counsel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cid = btn.getAttribute('data-cid');
+      const item = state.counselings.find(c => c.id === cid);
+      if (item) openStudentPersonalCounselModal(item.studentId);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-dl-homeroom-counsel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cid = btn.getAttribute('data-cid');
+      const item = state.counselings.find(c => c.id === cid);
+      if (item) downloadStudentPersonalWord(item.studentId);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-del-homeroom-counsel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cid = btn.getAttribute('data-cid');
+      if (!confirm('이 상담 기록을 삭제하시겠습니까?')) return;
+      state.counselings = state.counselings.filter(c => c.id !== cid);
+      saveState();
+      renderAll();
+    });
+  });
+}
+
+function renderHomeroomAttendanceCareTable() {
+  const tbody = document.getElementById('homeroom-care-tbody');
+  if (!tbody) return;
+
+  const targetStudents = state.students
+    .map(stu => ({ stu, stats: calculateStudentAttendanceStats(stu.id) }))
+    .filter(entry => entry.stats.hasAnyIssue);
+
+  if (targetStudents.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding: 1.8rem; color: #6c757d;">
+          현재 출결 특이사항(미인정결석, 기타결석, 연속5일, 누적35일)에 해당하는 학생이 없습니다.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = targetStudents.map(({ stu, stats }) => {
+    const stuCounsels = state.counselings.filter(c => c.studentId === stu.id);
+    const latestCounsel = stuCounsels[stuCounsels.length - 1];
+    const summaryText = latestCounsel
+      ? `[최근상담 ${latestCounsel.date}] ${latestCounsel.content}`
+      : `상담 기록 없음 (총 0회)`;
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(stu.studentNo)}</strong></td>
+        <td><strong>${escapeHtml(stu.name)}</strong></td>
+        <td>${renderStatsBadgesHtml(stats)}</td>
+        <td style="text-align:left;">${escapeHtml(summaryText)}</td>
+        <td>
+          <div class="row-action-btns">
+            <button class="btn btn-sky btn-care-homeroom-view" data-stuid="${stu.id}" style="padding:0.35rem 0.65rem; font-size:0.8rem;">
+              내용보기
+            </button>
+            <button class="btn btn-yellow btn-care-homeroom-dl" data-stuid="${stu.id}" style="padding:0.35rem 0.65rem; font-size:0.8rem;">
+              다운로드
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.btn-care-homeroom-view').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stuId = btn.getAttribute('data-stuid');
+      openStudentPersonalCounselModal(stuId);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-care-homeroom-dl').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stuId = btn.getAttribute('data-stuid');
+      downloadStudentPersonalWord(stuId);
+    });
+  });
+}
+
 // -------------------- 5-4. [관리자] 렌더링 --------------------
 function renderAdminSection() {
+  renderAdminTeacherTable();
   renderAdminStudentsTable();
   renderAdminCounselTable();
   renderAdminAttendanceCareTable();
   renderAdminSupportTable();
+}
+
+// 관리자 0) [선생님(교사) 계정 관리] 표 렌더링 (행 추가, 교사명, 비번, 저장/수정/삭제)
+function renderAdminTeacherTable() {
+  const tbody = document.getElementById('admin-teacher-tbody');
+  if (!tbody) return;
+
+  if (!state.teachers || state.teachers.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" style="padding: 1.5rem; color: #6c757d;">
+          등록된 선생님(교사) 계정이 없습니다. [+ 교사 계정 추가] 버튼을 눌러 교사명과 비밀번호를 등록하세요.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = state.teachers.map(tch => {
+    const editing = Boolean(tch.isEditing);
+    return `
+      <tr data-admin-tch="${tch.id}">
+        <td>
+          <input
+            type="text"
+            class="admin-input inp-tch-name"
+            value="${escapeHtml(tch.name)}"
+            placeholder="교사명/아이디 입력 (예: 김선생)"
+            ${editing ? '' : 'disabled'}
+          />
+        </td>
+        <td>
+          <input
+            type="text"
+            class="admin-input inp-tch-pw"
+            value="${escapeHtml(tch.pw)}"
+            placeholder="비밀번호 입력 (예: 1234)"
+            ${editing ? '' : 'disabled'}
+          />
+        </td>
+        <td>
+          <input
+            type="text"
+            class="admin-input inp-tch-note"
+            value="${escapeHtml(tch.note || '')}"
+            placeholder="담당 학급 / 비고 (예: 1학년 1반)"
+            ${editing ? '' : 'disabled'}
+          />
+        </td>
+        <td>
+          <div class="row-action-btns">
+            <button class="btn btn-primary btn-save-tch" data-id="${tch.id}" style="padding:0.38rem 0.7rem; font-size:0.8rem;">
+              저장
+            </button>
+            <button class="btn btn-outline-sm btn-edit-tch" data-id="${tch.id}">
+              수정
+            </button>
+            <button class="btn-danger-sm btn-del-tch" data-id="${tch.id}">
+              삭제
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // 저장 버튼
+  tbody.querySelectorAll('.btn-save-tch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const row = tbody.querySelector(`tr[data-admin-tch="${id}"]`);
+      const nameVal = row.querySelector('.inp-tch-name').value.trim();
+      const pwVal = row.querySelector('.inp-tch-pw').value.trim();
+      const noteVal = row.querySelector('.inp-tch-note').value.trim();
+
+      if (!nameVal || !pwVal) {
+        alert('교사명(아이디)과 비밀번호를 모두 입력해주세요.');
+        return;
+      }
+
+      const tch = state.teachers.find(t => t.id === id);
+      if (tch) {
+        tch.name = nameVal;
+        tch.pw = pwVal;
+        tch.note = noteVal;
+        tch.isEditing = false;
+
+        // 계정별 데이터 초기화 (없는 경우 새로운 양식 생성)
+        if (!state.accountsData) state.accountsData = {};
+        if (!state.accountsData[id]) {
+          state.accountsData[id] = createBlankAccountData(nameVal);
+        }
+
+        saveState();
+        renderAdminTeacherTable();
+        updateClassSwitcherOptions();
+        alert(`[${nameVal}] 선생님 계정이 저장되었습니다.\n선생님 로그인에서 아이디: ${nameVal}, 비밀번호: ${pwVal}로 로그인할 수 있습니다.`);
+      }
+    });
+  });
+
+  // 수정 버튼
+  tbody.querySelectorAll('.btn-edit-tch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const tch = state.teachers.find(t => t.id === id);
+      if (tch) {
+        tch.isEditing = true;
+        renderAdminTeacherTable();
+        const row = tbody.querySelector(`tr[data-admin-tch="${id}"]`);
+        if (row) row.querySelector('.inp-tch-name')?.focus();
+      }
+    });
+  });
+
+  // 삭제 버튼
+  tbody.querySelectorAll('.btn-del-tch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const tch = state.teachers.find(t => t.id === id);
+      if (!tch) return;
+      if (!confirm(`[${tch.name}] 선생님 계정을 삭제하시겠습니까?\n해당 계정의 출석부 및 상담 데이터도 함께 정리됩니다.`)) return;
+
+      state.teachers = state.teachers.filter(t => t.id !== id);
+      if (state.accountsData) delete state.accountsData[id];
+
+      if (currentActiveAccountId === id) {
+        applyActiveAccount('admin');
+      }
+
+      saveState();
+      renderAll();
+    });
+  });
 }
 
 function renderAdminStudentsTable() {
@@ -1210,6 +1740,11 @@ function openBasicInfoModal(studentId) {
   const modal = document.getElementById('modal-basic-info');
   const formEl = document.getElementById('form-basic-info');
   formEl.reset();
+
+  const dateInp = document.getElementById('basic-info-date');
+  if (dateInp) {
+    dateInp.value = formatDateYMD(new Date());
+  }
 
   document.getElementById('basic-student-id').value = stu.id;
   document.getElementById('basic-display-num').textContent = stu.studentNo;
@@ -1729,7 +2264,7 @@ function escapeHtml(str) {
 }
 
 function switchPage(targetId) {
-  const sections = ['section-attendance', 'section-counseling', 'section-support', 'section-admin'];
+  const sections = ['section-attendance', 'section-counseling', 'section-support', 'section-homeroom', 'section-admin'];
   sections.forEach(id => {
     const sec = document.getElementById(id);
     if (sec) {
@@ -1745,17 +2280,43 @@ function switchPage(targetId) {
   }
 }
 
-function setLoggedInUI(isLoggedIn) {
+function setLoggedInUI(isLoggedIn, account = null) {
   const loginView = document.getElementById('login-view');
   const appContent = document.getElementById('app-content');
   const mainNav = document.getElementById('main-nav');
   const adminInfo = document.getElementById('admin-user-info');
+  const navBtnAdmin = document.getElementById('nav-btn-admin');
+  const classSwitcherWrap = document.getElementById('class-switcher-wrap');
+  const userRoleBadge = document.getElementById('user-role-badge');
 
   if (isLoggedIn) {
     loginView.classList.add('hidden');
     appContent.classList.remove('hidden');
     mainNav.classList.remove('hidden');
     adminInfo.classList.remove('hidden');
+
+    const curAcc = account || getCurrentAccount() || { role: 'admin', id: 'admin', name: '예성원' };
+
+    if (curAcc.role === 'admin') {
+      if (userRoleBadge) {
+        userRoleBadge.textContent = `👑 관리자 (${curAcc.name})`;
+        userRoleBadge.style.background = 'var(--pastel-sky)';
+        userRoleBadge.style.color = 'var(--pastel-sky-dark)';
+      }
+      if (navBtnAdmin) navBtnAdmin.classList.remove('hidden');
+      if (classSwitcherWrap) classSwitcherWrap.classList.remove('hidden');
+    } else {
+      if (userRoleBadge) {
+        userRoleBadge.textContent = `👩‍🏫 ${curAcc.name} 선생님 (${curAcc.note || '담임교사'})`;
+        userRoleBadge.style.background = 'var(--pastel-green)';
+        userRoleBadge.style.color = 'var(--pastel-green-dark)';
+      }
+      // 선생님 계정은 관리자 메뉴 숨김
+      if (navBtnAdmin) navBtnAdmin.classList.add('hidden');
+      if (classSwitcherWrap) classSwitcherWrap.classList.add('hidden');
+    }
+
+    applyActiveAccount(curAcc.id);
     switchPage('section-attendance');
     renderAll();
   } else {
@@ -1766,37 +2327,95 @@ function setLoggedInUI(isLoggedIn) {
   }
 }
 
+function loginAsAccount(account) {
+  sessionStorage.setItem(SESSION_AUTH_KEY, 'true');
+  sessionStorage.setItem(SESSION_CURRENT_ACCOUNT_KEY, JSON.stringify(account));
+  setLoggedInUI(true, account);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // 세션 로그인 복원
   const isLogged = sessionStorage.getItem(SESSION_AUTH_KEY) === 'true';
-  setLoggedInUI(isLogged);
+  const curAcc = getCurrentAccount();
+  if (isLogged && curAcc) {
+    applyActiveAccount(curAcc.id);
+    setLoggedInUI(true, curAcc);
+  } else {
+    setLoggedInUI(false, null);
+  }
   initFirebaseIfConfigured();
 
-  // 1) 로그인 폼 처리 (NFC 정규화 비교 적용)
-  const loginForm = document.getElementById('login-form');
-  loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const inputId = document.getElementById('login-id').value.trim().normalize('NFC');
-    const inputPw = document.getElementById('login-pw').value.trim().normalize('NFC');
-    const targetId = ADMIN_CREDENTIALS.id.normalize('NFC');
-    const targetPw = ADMIN_CREDENTIALS.pw.normalize('NFC');
-    const errEl = document.getElementById('login-error');
+  // 1-A) 관리자 로그인 폼 처리
+  const adminLoginForm = document.getElementById('admin-login-form');
+  if (adminLoginForm) {
+    adminLoginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inputId = document.getElementById('admin-login-id').value.trim().normalize('NFC');
+      const inputPw = document.getElementById('admin-login-pw').value.trim().normalize('NFC');
+      const targetId = ADMIN_CREDENTIALS.id.normalize('NFC');
+      const targetPw = ADMIN_CREDENTIALS.pw.normalize('NFC');
+      const errEl = document.getElementById('admin-login-error');
 
-    if (inputId === targetId && inputPw === targetPw) {
-      errEl.classList.add('hidden');
-      sessionStorage.setItem(SESSION_AUTH_KEY, 'true');
-      setLoggedInUI(true);
-    } else {
-      errEl.classList.remove('hidden');
-    }
-  });
+      if (inputId === targetId && inputPw === targetPw) {
+        errEl.classList.add('hidden');
+        loginAsAccount({
+          role: 'admin',
+          id: 'admin',
+          name: '예성원',
+          note: '관리자'
+        });
+      } else {
+        errEl.classList.remove('hidden');
+      }
+    });
+  }
 
-  // 로그아웃
+  // 1-B) 선생님(담임) 로그인 폼 처리
+  const teacherLoginForm = document.getElementById('teacher-login-form');
+  if (teacherLoginForm) {
+    teacherLoginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inputId = document.getElementById('teacher-login-id').value.trim().normalize('NFC');
+      const inputPw = document.getElementById('teacher-login-pw').value.trim().normalize('NFC');
+      const errEl = document.getElementById('teacher-login-error');
+
+      const teacher = (state.teachers || []).find(t =>
+        (t.name || '').trim().normalize('NFC') === inputId &&
+        (t.pw || '').trim().normalize('NFC') === inputPw
+      );
+
+      if (teacher) {
+        errEl.classList.add('hidden');
+        loginAsAccount({
+          role: 'teacher',
+          id: teacher.id,
+          name: teacher.name,
+          note: teacher.note || '담임교사'
+        });
+      } else {
+        errEl.classList.remove('hidden');
+      }
+    });
+  }
+
+  // 로그아웃 공통
   document.getElementById('btn-logout').addEventListener('click', () => {
     sessionStorage.removeItem(SESSION_AUTH_KEY);
-    document.getElementById('login-form').reset();
-    setLoggedInUI(false);
+    sessionStorage.removeItem(SESSION_CURRENT_ACCOUNT_KEY);
+    if (adminLoginForm) adminLoginForm.reset();
+    if (teacherLoginForm) teacherLoginForm.reset();
+    setLoggedInUI(false, null);
   });
+
+  // 상단 관리자 학급 전환 셀렉트 박스
+  const classSelect = document.getElementById('select-active-class');
+  if (classSelect) {
+    classSelect.addEventListener('change', (e) => {
+      const selectedId = e.target.value;
+      applyActiveAccount(selectedId);
+      renderAll();
+    });
+  }
 
   // 2) 상단 메뉴 클릭 시 한 페이지씩 보이는 형태 (탭 페이지 전환)
   const navBtns = document.querySelectorAll('.nav-btn');
@@ -1954,15 +2573,32 @@ document.addEventListener('DOMContentLoaded', () => {
       diffList.push(`지도방안(직접): ${oldInfo.guidanceCustom || '없음'} -> ${guidanceCustom || '없음'}`);
     }
 
-    // 변경 내역이 있는 경우 해당 날짜로 기록
+    const dateInp = document.getElementById('basic-info-date');
+    const recordDate = (dateInp && dateInp.value) ? dateInp.value : formatDateYMD(new Date());
+
+    // 초기 등록 시 또는 기존 변경 이력이 없는 경우에도 첫 저장 내용을 diffList에 등록
+    if (diffList.length === 0 && (!state.basicInfoHistory?.[stuId] || state.basicInfoHistory[stuId].length === 0)) {
+      if (familyTypes.length > 0) diffList.push(`가정형태: ${familyTypes.join(', ')}`);
+      if (economicStatus) diffList.push(`경제적 형편: ${economicStatus}`);
+      if (careerHopes.length > 0) diffList.push(`진로희망: ${careerHopes.join(', ')}`);
+      if (attitudePositive.length > 0) diffList.push(`생활태도(긍정): ${attitudePositive.join(', ')}`);
+      if (problemBehaviors.length > 0) diffList.push(`생활태도(관심): ${problemBehaviors.join(', ')}`);
+    }
+
+    // 변경 내역이 있는 경우 사용자가 직접 입력/선택한 날짜(recordDate)의 행에 기록
     if (diffList.length > 0) {
-      const todayYmd = formatDateYMD(new Date());
       if (!state.basicInfoHistory) state.basicInfoHistory = {};
       if (!state.basicInfoHistory[stuId]) state.basicInfoHistory[stuId] = [];
-      state.basicInfoHistory[stuId].push({
-        date: todayYmd,
-        changes: diffList
-      });
+      const existingHistory = state.basicInfoHistory[stuId].find(h => h.date === recordDate);
+      if (existingHistory) {
+        if (!Array.isArray(existingHistory.changes)) existingHistory.changes = [];
+        existingHistory.changes.push(...diffList);
+      } else {
+        state.basicInfoHistory[stuId].push({
+          date: recordDate,
+          changes: diffList
+        });
+      }
     }
 
     if (!state.basicInfos) state.basicInfos = {};
@@ -2025,14 +2661,58 @@ document.addEventListener('DOMContentLoaded', () => {
       isEditing: true
     });
     renderAdminStudentsTable();
+    renderHomeroomStudentsTable();
     const row = document.querySelector(`tr[data-admin-stu="${newId}"]`);
     if (row) {
       row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      row.querySelector('.inp-stu-no').focus();
+      row.querySelector('.inp-stu-no')?.focus();
     }
   });
 
-  // 5-B) 관리자 -> [지원] 기관 행 추가 버튼
+  // 5-B) 담임관리 -> [출석부] 행 추가 버튼
+  const btnHomeroomAddStu = document.getElementById('btn-homeroom-add-student-row');
+  if (btnHomeroomAddStu) {
+    btnHomeroomAddStu.addEventListener('click', () => {
+      const newId = 'stu-' + Date.now();
+      state.students.push({
+        id: newId,
+        studentNo: '',
+        name: '',
+        isEditing: true
+      });
+      renderHomeroomStudentsTable();
+      renderAdminStudentsTable();
+      const row = document.querySelector(`tr[data-homeroom-stu="${newId}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.querySelector('.inp-stu-no')?.focus();
+      }
+    });
+  }
+
+  // 5-C) 관리자 -> [선생님(교사) 계정] 행 추가 버튼
+  const btnAddTeacher = document.getElementById('btn-add-teacher-row');
+  if (btnAddTeacher) {
+    btnAddTeacher.addEventListener('click', () => {
+      const newId = 'tch-' + Date.now();
+      if (!state.teachers) state.teachers = [];
+      state.teachers.push({
+        id: newId,
+        name: '',
+        pw: '',
+        note: '',
+        isEditing: true
+      });
+      renderAdminTeacherTable();
+      const row = document.querySelector(`tr[data-admin-tch="${newId}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.querySelector('.inp-tch-name')?.focus();
+      }
+    });
+  }
+
+  // 5-D) 관리자 -> [지원] 기관 행 추가 버튼
   const btnAddSup = document.getElementById('btn-add-support-row');
   if (btnAddSup) {
     btnAddSup.addEventListener('click', () => {
@@ -2086,7 +2766,6 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('다운로드할 상담 내역이 없습니다.');
       return;
     }
-    // 상담 기록이 있는 학생들별로 기본자료 + 날짜별 상담내용을 연달아 출력
     const studentIdsWithCounsel = [...new Set(state.counselings.map(c => c.studentId))];
     const sectionsHtml = studentIdsWithCounsel
       .map(stuId => buildStudentPersonalWordHtml(stuId))
@@ -2095,6 +2774,55 @@ document.addEventListener('DOMContentLoaded', () => {
     triggerWordDownload(`내금쪽이들_전체상담내역_${formatDateYMD(new Date())}.doc`, sectionsHtml);
   });
 
+  // 6-B) 담임관리 -> [출결관리] 뷰 토글 및 전체 다운로드
+  const homeroomCareView = document.getElementById('homeroom-attendance-care-view');
+  const homeroomCounselListView = document.getElementById('homeroom-counsel-list-view');
+  const btnHomeroomToggleCare = document.getElementById('btn-homeroom-toggle-attendance-care');
+  if (btnHomeroomToggleCare && homeroomCareView && homeroomCounselListView) {
+    btnHomeroomToggleCare.addEventListener('click', () => {
+      const showingCare = !homeroomCareView.classList.contains('hidden');
+      if (showingCare) {
+        homeroomCareView.classList.add('hidden');
+        homeroomCounselListView.classList.remove('hidden');
+      } else {
+        homeroomCareView.classList.remove('hidden');
+        homeroomCounselListView.classList.add('hidden');
+        renderHomeroomAttendanceCareTable();
+      }
+    });
+  }
+
+  const btnHomeroomCloseCare = document.getElementById('btn-homeroom-close-care-view');
+  if (btnHomeroomCloseCare && homeroomCareView && homeroomCounselListView) {
+    btnHomeroomCloseCare.addEventListener('click', () => {
+      homeroomCareView.classList.add('hidden');
+      homeroomCounselListView.classList.remove('hidden');
+    });
+  }
+
+  const btnHomeroomDlCareAll = document.getElementById('btn-homeroom-download-care-all');
+  if (btnHomeroomDlCareAll) {
+    btnHomeroomDlCareAll.addEventListener('click', () => {
+      downloadAllCareWord();
+    });
+  }
+
+  const btnHomeroomDlCounselAll = document.getElementById('btn-homeroom-download-all-counsel');
+  if (btnHomeroomDlCounselAll) {
+    btnHomeroomDlCounselAll.addEventListener('click', () => {
+      if (state.counselings.length === 0) {
+        alert('다운로드할 상담 내역이 없습니다.');
+        return;
+      }
+      const studentIdsWithCounsel = [...new Set(state.counselings.map(c => c.studentId))];
+      const sectionsHtml = studentIdsWithCounsel
+        .map(stuId => buildStudentPersonalWordHtml(stuId))
+        .join('<hr style="margin:24px 0; border:0; border-top:2px dashed #ccc;" />');
+
+      triggerWordDownload(`내금쪽이들_학급상담내역_${formatDateYMD(new Date())}.doc`, sectionsHtml);
+    });
+  }
+
   // 상세 모달 내 Word 다운로드 버튼
   document.getElementById('btn-modal-word-download').addEventListener('click', () => {
     if (typeof activeDetailWordGenerator === 'function') {
@@ -2102,19 +2830,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 6-B) 전체 데이터 백업 저장 (.json 파일 다운로드)
+  // 6-C) 전체 데이터 백업 저장 (.json 파일 다운로드 - 교사 계정 및 계정별 독립 데이터 포함)
   document.getElementById('btn-backup-data').addEventListener('click', () => {
+    syncCurrentToAccountData();
     const backupData = {
       app: '내 금쪽이들',
-      version: '1.0',
+      version: '2.0',
       exportedAt: new Date().toISOString(),
-      students: state.students,
-      attendance: state.attendance,
-      holidays: state.holidays,
-      holidayReasons: state.holidayReasons || {},
-      basicInfos: state.basicInfos || {},
-      basicInfoHistory: state.basicInfoHistory || {},
-      counselings: state.counselings,
+      teachers: state.teachers || [],
+      accountsData: state.accountsData || {},
       supportLinks: state.supportLinks || []
     };
 
@@ -2128,10 +2852,10 @@ document.addEventListener('DOMContentLoaded', () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    alert('전체 데이터 백업 파일이 다운로드되었습니다!\n이 파일을 이메일, 카카오톡 나에게 보내기, USB 등에 저장해 두시면 언제든 다른 컴퓨터나 브라우저에서 그대로 복원할 수 있습니다.');
+    alert('전체 데이터 백업 파일이 다운로드되었습니다!\n선생님 계정 정보와 각 학급별 출석부·상담 데이터가 모두 안전하게 포함되어 있습니다.');
   });
 
-  // 6-C) 데이터 복원 / 불러오기 (.json 파일 선택)
+  // 6-D) 데이터 복원 / 불러오기 (.json 파일 선택)
   const inpRestore = document.getElementById('inp-restore-file');
   document.getElementById('btn-restore-data').addEventListener('click', () => {
     inpRestore.click();
@@ -2145,25 +2869,35 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target.result);
-        if (!parsed.students && !parsed.attendance && !parsed.counselings) {
+        if (!parsed.accountsData && !parsed.students && !parsed.attendance && !parsed.counselings) {
           alert('올바른 [내 금쪽이들] 백업 파일(.json)이 아닙니다.');
           return;
         }
 
-        if (!confirm('백업 파일의 데이터를 불러오시겠습니까?\n현재 브라우저의 출결 및 상담 데이터가 백업 파일 내용으로 복원됩니다.')) {
+        if (!confirm('백업 파일의 데이터를 불러오시겠습니까?\n모든 교사 계정과 출결·상담 데이터가 백업 내용으로 복원됩니다.')) {
           inpRestore.value = '';
           return;
         }
 
-        state.students = Array.isArray(parsed.students) ? parsed.students : state.students;
-        state.attendance = parsed.attendance || {};
-        state.holidays = parsed.holidays || {};
-        state.holidayReasons = parsed.holidayReasons || {};
-        state.basicInfos = parsed.basicInfos || {};
-        state.basicInfoHistory = parsed.basicInfoHistory || {};
-        state.counselings = Array.isArray(parsed.counselings) ? parsed.counselings : [];
-        state.supportLinks = Array.isArray(parsed.supportLinks) ? parsed.supportLinks : [];
+        if (Array.isArray(parsed.teachers)) state.teachers = parsed.teachers;
+        if (parsed.accountsData) {
+          state.accountsData = parsed.accountsData;
+        } else {
+          // 구버전 백업 파일 호환 복원
+          if (!state.accountsData) state.accountsData = {};
+          state.accountsData['admin'] = {
+            students: Array.isArray(parsed.students) ? parsed.students : [],
+            attendance: parsed.attendance || {},
+            holidays: parsed.holidays || {},
+            holidayReasons: parsed.holidayReasons || {},
+            basicInfos: parsed.basicInfos || {},
+            basicInfoHistory: parsed.basicInfoHistory || {},
+            counselings: Array.isArray(parsed.counselings) ? parsed.counselings : []
+          };
+        }
+        if (Array.isArray(parsed.supportLinks)) state.supportLinks = parsed.supportLinks;
 
+        applyActiveAccount(currentActiveAccountId);
         saveState();
         renderAll();
         alert('데이터 복원이 성공적으로 완료되었습니다!');

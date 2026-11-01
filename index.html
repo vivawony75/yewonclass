@@ -21,7 +21,7 @@
       <span id="sync-status" class="sync-badge local" title="클라우드 연동 상태">로컬 저장 모드</span>
     </div>
 
-    <!-- 관리자 로그인 시에만 노출되는 중앙 메뉴 -->
+    <!-- 상단 중앙 네비게이션 메뉴 (지원과 관리자 사이에 담임관리 배치) -->
     <nav id="main-nav" class="header-nav hidden">
       <button class="nav-btn active" data-target="section-attendance">
         <i data-lucide="calendar-check"></i>
@@ -35,7 +35,11 @@
         <i data-lucide="life-buoy"></i>
         <span>지원</span>
       </button>
-      <button class="nav-btn" data-target="section-admin">
+      <button id="nav-btn-homeroom" class="nav-btn" data-target="section-homeroom">
+        <i data-lucide="clipboard-list"></i>
+        <span>담임관리</span>
+      </button>
+      <button id="nav-btn-admin" class="nav-btn" data-target="section-admin">
         <i data-lucide="shield-check"></i>
         <span>관리자</span>
       </button>
@@ -43,15 +47,19 @@
 
     <div class="header-right">
       <div id="admin-user-info" class="admin-info hidden">
-        <span class="admin-name-pill">👑 관리자 모드</span>
+        <div id="class-switcher-wrap" class="class-switcher-wrap hidden">
+          <label for="select-active-class" class="class-switcher-label">🏫 학급 전환:</label>
+          <select id="select-active-class" class="class-switcher-select"></select>
+        </div>
+        <span id="user-role-badge" class="admin-name-pill">👑 관리자 모드</span>
         <button id="btn-logout" class="btn btn-outline-sm">로그아웃</button>
       </div>
     </div>
   </header>
 
-  <!-- 로그인 오버레이 화면 (비로그인 시 노출) -->
+  <!-- 로그인 오버레이 화면 (관리자 및 선생님 로그인 란 동시 제공) -->
   <main id="login-view" class="login-wrapper">
-    <div class="login-card pastel-card">
+    <div class="login-card pastel-card login-card-wide">
       <div class="login-deco-dots">
         <span class="dot pink"></span>
         <span class="dot yellow"></span>
@@ -59,20 +67,53 @@
         <span class="dot sky"></span>
       </div>
       <div class="login-icon">🏫</div>
-      <h2>선생님 환영합니다!</h2>
-      <p class="login-sub">내 금쪽이들 출결 및 상담 관리 시스템입니다.<br/>관리자 계정으로 로그인하면 모든 메뉴가 활성화됩니다.</p>
-      <form id="login-form" class="login-form">
-        <div class="input-group">
-          <label for="login-id">관리자 아이디</label>
-          <input type="text" id="login-id" placeholder="관리자 아이디를 입력하세요" required autocomplete="username" />
+      <h2>내 금쪽이들 로그인</h2>
+      <p class="login-sub">학교 출결 및 학생 상담 관리 시스템입니다.<br/>관리자 계정 또는 선생님(담임) 아이디와 비밀번호로 로그인해주세요.</p>
+
+      <div class="login-dual-grid">
+        <!-- 1) 관리자 로그인 입력란 -->
+        <div class="login-col-box admin-login-box">
+          <div class="login-col-header">
+            <span class="login-badge-pill admin">👑 관리자 로그인</span>
+          </div>
+          <form id="admin-login-form" class="login-form">
+            <div class="input-group">
+              <label for="admin-login-id">관리자 아이디</label>
+              <input type="text" id="admin-login-id" placeholder="관리자 아이디 입력" required autocomplete="username" />
+            </div>
+            <div class="input-group">
+              <label for="admin-login-pw">비밀번호</label>
+              <input type="password" id="admin-login-pw" placeholder="비밀번호 입력" required autocomplete="current-password" />
+            </div>
+            <p id="admin-login-error" class="error-msg hidden">관리자 아이디 또는 비밀번호가 올바르지 않습니다.</p>
+            <button type="submit" class="btn btn-primary btn-full">👑 관리자 로그인</button>
+          </form>
         </div>
-        <div class="input-group">
-          <label for="login-pw">비밀번호</label>
-          <input type="password" id="login-pw" placeholder="비밀번호를 입력하세요" required autocomplete="current-password" />
+
+        <!-- 구분선 -->
+        <div class="login-col-divider">
+          <span>또는</span>
         </div>
-        <p id="login-error" class="error-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.</p>
-        <button type="submit" class="btn btn-primary btn-full">로그인하기</button>
-      </form>
+
+        <!-- 2) 선생님(담임) 로그인 입력란 -->
+        <div class="login-col-box teacher-login-box">
+          <div class="login-col-header">
+            <span class="login-badge-pill teacher">👩‍🏫 선생님(담임) 로그인</span>
+          </div>
+          <form id="teacher-login-form" class="login-form">
+            <div class="input-group">
+              <label for="teacher-login-id">선생님 아이디 (교사명)</label>
+              <input type="text" id="teacher-login-id" placeholder="등록된 교사명 입력 (예: 김선생)" required autocomplete="username" />
+            </div>
+            <div class="input-group">
+              <label for="teacher-login-pw">비밀번호</label>
+              <input type="password" id="teacher-login-pw" placeholder="비밀번호 입력" required autocomplete="current-password" />
+            </div>
+            <p id="teacher-login-error" class="error-msg hidden">교사명 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자 메뉴에서 등록된 교사 계정으로 로그인해주세요.</small></p>
+            <button type="submit" class="btn btn-green btn-full">👩‍🏫 선생님 로그인</button>
+          </form>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -201,14 +242,136 @@
       </div>
     </section>
 
-    <!-- ==================== 4. [관리자] 섹션 ==================== -->
+    <!-- ==================== 4. [담임관리] 섹션 (지원과 관리자 사이) ==================== -->
+    <section id="section-homeroom" class="page-section pastel-yellow-theme hidden">
+      <div class="section-header">
+        <div>
+          <span class="section-tag tag-yellow">SECTION 04</span>
+          <h2 class="section-title">📋 담임관리</h2>
+          <p class="section-desc">
+            담임교사를 위한 학급 전용 관리 메뉴입니다. 출석부 명단(학번·이름) 설정, 학급 상담내역 조회 및 Word 다운로드, 출결 특이사항 해당자 집중 관리를 수행합니다.
+          </p>
+        </div>
+        <div class="section-actions" id="homeroom-account-info-bar">
+          <span id="homeroom-current-class-badge" class="admin-name-pill" style="background:#e0f7e6; color:#2b9348;">
+            👩‍🏫 담임교사 학급 관리
+          </span>
+        </div>
+      </div>
+
+      <div class="admin-grid">
+        <!-- 담임 1) [출석부] 학생 명단 설정 -->
+        <div class="admin-panel pastel-subcard yellow-border">
+          <div class="panel-header">
+            <div>
+              <h3>📋 담임 [출석부] 명단 설정</h3>
+              <p class="panel-sub">행 추가 후 학번과 이름을 입력하고 저장하세요. 본인 학급 출석부 및 상담관리에 즉시 반영됩니다.</p>
+            </div>
+            <button id="btn-homeroom-add-student-row" class="btn btn-primary">
+              <i data-lucide="user-plus"></i>
+              <span>+ 행 추가</span>
+            </button>
+          </div>
+
+          <div class="scroll-10-rows">
+            <table class="data-table homeroom-student-table">
+              <thead>
+                <tr>
+                  <th style="width: 180px;">학번</th>
+                  <th>이름</th>
+                  <th style="width: 220px;">관리 (저장 / 수정 / 삭제)</th>
+                </tr>
+              </thead>
+              <tbody id="homeroom-student-tbody">
+                <!-- JS 렌더링 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 담임 2) [상담관리] & [출결관리] -->
+        <div class="admin-panel pastel-subcard sky-border">
+          <div class="panel-header">
+            <div>
+              <h3>🗂️ 담임 [상담관리] 내역 및 [출결관리]</h3>
+              <p class="panel-sub">학급 상담 내역을 확인하고 Word(.doc) 파일로 내려받거나, <strong>[출결관리]</strong> 버튼을 눌러 출결 특이사항 해당 학생만 모아 관리하세요.</p>
+            </div>
+            <div class="panel-btn-group">
+              <button id="btn-homeroom-toggle-attendance-care" class="btn btn-pink">
+                <i data-lucide="alert-triangle"></i>
+                <span>[출결관리] (특이사항 해당자 보기)</span>
+              </button>
+              <button id="btn-homeroom-download-all-counsel" class="btn btn-outline-sm">
+                <i data-lucide="download"></i>
+                <span>전체 상담 Word 다운로드</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 상담내역 리스트 표기 -->
+          <div id="homeroom-counsel-list-view">
+            <div class="scroll-10-rows">
+              <table class="data-table homeroom-counsel-table">
+                <thead>
+                  <tr>
+                    <th style="width: 140px;">날짜</th>
+                    <th style="width: 130px;">학번</th>
+                    <th style="width: 130px;">이름</th>
+                    <th>상담 요약</th>
+                    <th style="width: 230px;">기능 (내용보기 / 다운로드 / 삭제)</th>
+                  </tr>
+                </thead>
+                <tbody id="homeroom-counsel-tbody">
+                  <!-- JS 렌더링 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- [출결관리] 전용 뷰 -->
+          <div id="homeroom-attendance-care-view" class="attendance-care-box hidden">
+            <div class="care-banner">
+              <div>
+                <h4>🚨 학급 출결 집중 관리 대상자 (출결 특이사항 해당 학생)</h4>
+                <p>미인정결석(A), 기타결석(B), 연속5일, 누적35일에 해당하는 학생들과 최근 상담 내용이 함께 정리된 목록입니다.</p>
+              </div>
+              <div class="care-banner-actions">
+                <button id="btn-homeroom-download-care-all" class="btn btn-primary">
+                  <i data-lucide="file-down"></i>
+                  <span>출결관리 전체 Word 다운로드</span>
+                </button>
+                <button id="btn-homeroom-close-care-view" class="btn btn-outline-sm">상담내역 리스트로 돌아가기</button>
+              </div>
+            </div>
+            <div class="scroll-10-rows">
+              <table class="data-table care-table">
+                <thead>
+                  <tr>
+                    <th style="width: 110px;">학번</th>
+                    <th style="width: 110px;">이름</th>
+                    <th style="width: 280px;">출결 현황</th>
+                    <th>상담 및 특이사항 정리</th>
+                    <th style="width: 200px;">내용보기 / Word 다운로드</th>
+                  </tr>
+                </thead>
+                <tbody id="homeroom-care-tbody">
+                  <!-- JS 렌더링 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 5. [관리자] 섹션 ==================== -->
     <section id="section-admin" class="page-section pastel-sky-theme hidden">
       <div class="section-header">
         <div>
-          <span class="section-tag tag-sky">SECTION 04</span>
+          <span class="section-tag tag-sky">SECTION 05</span>
           <h2 class="section-title">🛠️ 관리자 메뉴</h2>
           <p class="section-desc">
-            출석부 학생 명단(학번·이름) 관리, 전체 상담내역 조회 및 Word 다운로드, 출결 특이사항 해당자 집중 관리, 그리고 Firebase 연동을 설정합니다.
+            선생님(교사) 계정 관리, 출석부 학생 명단(학번·이름) 관리, 전체 상담내역 조회 및 Word 다운로드, 출결 특이사항 해당자 집중 관리, 그리고 Firebase 연동을 설정합니다.
           </p>
         </div>
         <div class="section-actions" style="display:flex; flex-wrap:wrap; gap:0.6rem;">
@@ -229,6 +392,36 @@
       </div>
 
       <div class="admin-grid">
+        <!-- 관리자 0) [선생님(교사) 계정 관리] (행 추가, 교사명, 비번 표, 저장/수정/삭제) -->
+        <div class="admin-panel pastel-subcard green-border">
+          <div class="panel-header">
+            <div>
+              <h3>👩‍🏫 관리자 [선생님(교사) 계정 관리]</h3>
+              <p class="panel-sub">관리자가 선생님 아이디(교사명)와 비밀번호를 지정합니다. 등록된 선생님 계정으로 메인화면 로그인이 가능하며, 각 계정마다 독립된 출석부와 상담 양식이 제공됩니다.</p>
+            </div>
+            <button id="btn-add-teacher-row" class="btn btn-green">
+              <i data-lucide="user-plus"></i>
+              <span>+ 교사 계정 추가</span>
+            </button>
+          </div>
+
+          <div class="scroll-10-rows">
+            <table class="data-table admin-teacher-table">
+              <thead>
+                <tr>
+                  <th style="width: 180px;">교사명 (아이디)</th>
+                  <th style="width: 180px;">비밀번호</th>
+                  <th>담당 학급 / 비고</th>
+                  <th style="width: 220px;">관리 (저장 / 수정 / 삭제)</th>
+                </tr>
+              </thead>
+              <tbody id="admin-teacher-tbody">
+                <!-- JS 렌더링 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- 관리자 1) [출석부] 학생 명단 설정 -->
         <div class="admin-panel pastel-subcard yellow-border">
           <div class="panel-header">
@@ -383,6 +576,19 @@
             <span class="info-label">이름:</span>
             <strong id="basic-display-name">-</strong>
           </div>
+        </div>
+
+        <!-- 상담/변경 날짜 직접 입력란 (기본상담관리 날짜 지정) -->
+        <div class="form-section-box" style="background:#f0f7ff; border-color:#bce1f7;">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+            <label class="box-title" for="basic-info-date" style="margin-bottom:0; color:#1971c2; font-weight:700;">
+              📅 기본상담/기본자료 기준 날짜 <small>(직접 입력·달력 선택 가능)</small>
+            </label>
+            <input type="date" id="basic-info-date" style="padding:0.45rem 0.75rem; border:1.5px solid #64b5f6; border-radius:8px; font-weight:700; font-size:0.95rem; color:#1971c2; background:#fff;" required />
+          </div>
+          <p style="font-size:0.8rem; color:#555; margin-top:0.4rem; margin-bottom:0;">
+            * 이 날짜를 기준으로 기본자료 변경 내용이 기록되며, 상담기록의 해당 날짜 칸에 변경된 내용(파란색)으로 표시됩니다.
+          </p>
         </div>
 
         <!-- 출결사항 (출석부 자동 반영) -->
