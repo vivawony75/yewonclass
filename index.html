@@ -85,7 +85,7 @@
               <label for="admin-login-pw">비밀번호</label>
               <input type="password" id="admin-login-pw" placeholder="비밀번호 입력" required autocomplete="current-password" />
             </div>
-            <p id="admin-login-error" class="error-msg hidden">관리자 아이디 또는 비밀번호가 올바르지 않습니다.</p>
+            <p id="admin-login-error" class="error-msg hidden">관리자 아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>(비밀번호 분실 시 안티그래비티로 수정 요청)</small></p>
             <button type="submit" class="btn btn-primary btn-full">👑 관리자 로그인</button>
           </form>
         </div>
@@ -102,14 +102,14 @@
           </div>
           <form id="teacher-login-form" class="login-form">
             <div class="input-group">
-              <label for="teacher-login-id">선생님 아이디 (교사명)</label>
-              <input type="text" id="teacher-login-id" placeholder="등록된 교사명 입력 (예: 김선생)" required autocomplete="username" />
+              <label for="teacher-login-id">선생님 아이디</label>
+              <input type="text" id="teacher-login-id" placeholder="관리자가 지정한 아이디 입력" required autocomplete="username" />
             </div>
             <div class="input-group">
               <label for="teacher-login-pw">비밀번호</label>
-              <input type="password" id="teacher-login-pw" placeholder="비밀번호 입력" required autocomplete="current-password" />
+              <input type="password" id="teacher-login-pw" placeholder="비밀번호 입력 (yewon4441#)" required autocomplete="current-password" />
             </div>
-            <p id="teacher-login-error" class="error-msg hidden">교사명 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자 메뉴에서 등록된 교사 계정으로 로그인해주세요.</small></p>
+            <p id="teacher-login-error" class="error-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자가 지정한 아이디와 비밀번호(yewon4441#)로 로그인해주세요.</small></p>
             <button type="submit" class="btn btn-green btn-full">👩‍🏫 선생님 로그인</button>
           </form>
         </div>
@@ -396,7 +396,7 @@
           <div class="panel-header">
             <div>
               <h3>👩‍🏫 관리자 [선생님(교사) 계정 관리]</h3>
-              <p class="panel-sub">관리자가 선생님 아이디(교사명)와 비밀번호를 지정합니다. 등록된 선생님 계정으로 메인화면 로그인이 가능하며, 각 계정마다 독립된 출석부와 상담 양식이 제공됩니다.</p>
+              <p class="panel-sub">관리자가 각 교사에게 지정한 아이디를 등록하며, 선생님 비밀번호는 모두 <strong>yewon4441#</strong>으로 로그인할 수 있습니다. 각 계정마다 독립된 출석부와 상담 양식이 깨끗하게 제공됩니다.</p>
             </div>
             <button id="btn-add-teacher-row" class="btn btn-green">
               <i data-lucide="user-plus"></i>

@@ -8,12 +8,15 @@
  */
 
 // ============================================================================
-// 1. 관리자 로그인 정보 (변경 시 안티그래비티로 수정)
+// 1. 관리자 및 교사 로그인 정보 (관리자 비밀번호 분실 시 안티그래비티로 수정 요청)
 // ============================================================================
 const ADMIN_CREDENTIALS = {
   id: '예성원',
-  pw: '8797'
+  pw: 'admin4441#' // 관리자 비밀번호 분실 시 안티그래비티로 수정 요청
 };
+
+// 모든 교사 공통 로그인 비밀번호
+const TEACHER_DEFAULT_PASSWORD = 'yewon4441#';
 
 // 대한민국 기본 공휴일 (월-일 또는 연-월-일) - 연속 5일 미인정결석 계산 시 주말·휴업일과 함께 자동 연결
 const KOREAN_PUBLIC_HOLIDAYS_MMDD = new Set([
@@ -109,8 +112,8 @@ function getInitialState() {
 
   return {
     teachers: [
-      { id: 'tch-1', name: '김선생', pw: '1234', note: '1학년 1반', isEditing: false },
-      { id: 'tch-2', name: '이선생', pw: '1234', note: '1학년 2반', isEditing: false }
+      { id: 'tch-1', name: '김선생', pw: TEACHER_DEFAULT_PASSWORD, note: '1학년 1반', isEditing: false },
+      { id: 'tch-2', name: '이선생', pw: TEACHER_DEFAULT_PASSWORD, note: '1학년 2반', isEditing: false }
     ],
     accountsData: {
       'admin': adminAccountData,
@@ -264,8 +267,11 @@ function loadStateFromLocal() {
       }
     });
 
-    // 2) 등록된 각 교사별 accountsData가 없으면 기본 양식 생성
+    // 2) 등록된 각 교사별 accountsData가 없으면 기본 양식 생성 및 기본 비밀번호(yewon4441#) 동기화
     teachers.forEach(tch => {
+      if (!tch.pw || tch.pw === '1234') {
+        tch.pw = TEACHER_DEFAULT_PASSWORD;
+      }
       if (!accountsData[tch.id]) {
         accountsData[tch.id] = initial.accountsData[tch.id] || createBlankAccountData(tch.name);
       }
@@ -1275,8 +1281,8 @@ function renderAdminTeacherTable() {
           <input
             type="text"
             class="admin-input inp-tch-pw"
-            value="${escapeHtml(tch.pw)}"
-            placeholder="비밀번호 입력 (예: 1234)"
+            value="${escapeHtml(tch.pw || TEACHER_DEFAULT_PASSWORD)}"
+            placeholder="비밀번호 입력 (기본: yewon4441#)"
             ${editing ? '' : 'disabled'}
           />
         </td>
@@ -1312,11 +1318,11 @@ function renderAdminTeacherTable() {
       const id = btn.getAttribute('data-id');
       const row = tbody.querySelector(`tr[data-admin-tch="${id}"]`);
       const nameVal = row.querySelector('.inp-tch-name').value.trim();
-      const pwVal = row.querySelector('.inp-tch-pw').value.trim();
+      const pwVal = row.querySelector('.inp-tch-pw').value.trim() || TEACHER_DEFAULT_PASSWORD;
       const noteVal = row.querySelector('.inp-tch-note').value.trim();
 
-      if (!nameVal || !pwVal) {
-        alert('교사명(아이디)과 비밀번호를 모두 입력해주세요.');
+      if (!nameVal) {
+        alert('선생님 아이디(교사명)를 입력해주세요.');
         return;
       }
 
@@ -2751,10 +2757,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const inputPw = document.getElementById('teacher-login-pw').value.trim().normalize('NFC');
       const errEl = document.getElementById('teacher-login-error');
 
-      const teacher = (state.teachers || []).find(t =>
-        (t.name || '').trim().normalize('NFC') === inputId &&
-        (t.pw || '').trim().normalize('NFC') === inputPw
-      );
+      // 관리자가 지정한 아이디(교사명 또는 계정 ID)로 매칭 & 비밀번호는 yewon4441# (또는 등록된 비번)으로 로그인
+      const teacher = (state.teachers || []).find(t => {
+        const idMatches = (t.name || '').trim().normalize('NFC') === inputId ||
+                          (t.id || '').trim().normalize('NFC') === inputId;
+        const pwMatches = (inputPw === TEACHER_DEFAULT_PASSWORD) ||
+                          ((t.pw || '').trim().normalize('NFC') === inputPw);
+        return idMatches && pwMatches;
+      });
 
       if (teacher) {
         errEl.classList.add('hidden');
@@ -3099,7 +3109,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.teachers.push({
         id: newId,
         name: '',
-        pw: '',
+        pw: TEACHER_DEFAULT_PASSWORD,
         note: '',
         isEditing: true
       });
