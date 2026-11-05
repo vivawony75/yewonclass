@@ -1155,7 +1155,10 @@ function renderHomeroomCounselTable() {
     btn.addEventListener('click', () => {
       const cid = btn.getAttribute('data-cid');
       const item = state.counselings.find(c => c.id === cid);
-      if (item) openStudentPersonalCounselModal(item.studentId);
+      if (item) {
+        // [상담관리]의 통합 모달과 완벽 동기화 (최신 기본자료 + 상담 목록 노출)
+        openCounselModal(item.studentId);
+      }
     });
   });
 
@@ -1171,9 +1174,7 @@ function renderHomeroomCounselTable() {
     btn.addEventListener('click', () => {
       const cid = btn.getAttribute('data-cid');
       if (!confirm('이 상담 기록을 삭제하시겠습니까?')) return;
-      state.counselings = state.counselings.filter(c => c.id !== cid);
-      saveState();
-      renderAll();
+      deleteCounselingRecord(cid);
     });
   });
 }
@@ -1227,7 +1228,8 @@ function renderHomeroomAttendanceCareTable() {
   tbody.querySelectorAll('.btn-care-homeroom-view').forEach(btn => {
     btn.addEventListener('click', () => {
       const stuId = btn.getAttribute('data-stuid');
-      openStudentPersonalCounselModal(stuId);
+      // [상담관리]의 최신 통합 모달 열기 (기본자료 + 상담 목록 노출)
+      openCounselModal(stuId);
     });
   });
 
@@ -1548,7 +1550,7 @@ function renderAdminCounselTable() {
     btn.addEventListener('click', () => {
       const cid = btn.getAttribute('data-cid');
       const item = state.counselings.find(c => c.id === cid);
-      if (item) openStudentPersonalCounselModal(item.studentId);
+      if (item) openCounselModal(item.studentId);
     });
   });
 
@@ -1564,9 +1566,7 @@ function renderAdminCounselTable() {
     btn.addEventListener('click', () => {
       const cid = btn.getAttribute('data-cid');
       if (!confirm('이 상담 기록을 삭제하시겠습니까?')) return;
-      state.counselings = state.counselings.filter(c => c.id !== cid);
-      saveState();
-      renderAll();
+      deleteCounselingRecord(cid);
     });
   });
 }
@@ -1622,7 +1622,7 @@ function renderAdminAttendanceCareTable() {
   tbody.querySelectorAll('.btn-care-view').forEach(btn => {
     btn.addEventListener('click', () => {
       const stuId = btn.getAttribute('data-stuid');
-      openStudentPersonalCounselModal(stuId);
+      openCounselModal(stuId);
     });
   });
 
@@ -1845,6 +1845,31 @@ function updateGuidancePreview() {
     }
   }
   return tags;
+}
+
+// 상담 기록 완전 삭제 함수 (모든 메뉴 및 계정 동기화)
+function deleteCounselingRecord(counselId) {
+  if (!counselId) return;
+  // 1. 활성 state.counselings에서 완전 제거
+  state.counselings = (state.counselings || []).filter(c => c.id !== counselId);
+  editingCounselIds.delete(counselId);
+  tempCounselRows = tempCounselRows.filter(r => r.id !== counselId);
+
+  // 2. accountsData 내 모든 계정(admin 및 등록된 교사 계정 전체)에서 해당 상담 ID 완전 제거
+  if (state.accountsData && typeof state.accountsData === 'object') {
+    Object.keys(state.accountsData).forEach(accId => {
+      const acc = state.accountsData[accId];
+      if (acc && Array.isArray(acc.counselings)) {
+        acc.counselings = acc.counselings.filter(c => c.id !== counselId);
+      }
+    });
+  }
+
+  // 3. 로컬 저장 및 Firebase Firestore 동기화
+  saveState();
+
+  // 4. 출석부, 상담관리, 담임관리, 관리자 뷰 전체 즉각 재렌더링
+  renderAll();
 }
 
 let currentUnifiedStudentId = null;
@@ -2184,10 +2209,7 @@ function renderUnifiedCounselingTable(studentId) {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-id');
       if (!confirm('이 상담 기록을 삭제하시겠습니까?')) return;
-      state.counselings = state.counselings.filter(c => c.id !== id);
-      editingCounselIds.delete(id);
-      saveState();
-      renderAll();
+      deleteCounselingRecord(id);
       renderUnifiedCounselingTable(studentId);
     });
   });
@@ -2227,7 +2249,8 @@ function openStudentPersonalCounselModal(studentId) {
     counselByDate[c.date].push(c.content);
   });
 
-  const allDates = [...new Set([...Object.keys(historyByDate), ...Object.keys(counselByDate)])]
+  // 상담 내용이 실제로 존재하는 날짜만 추출 (상담 삭제 시 타임라인에서도 즉시 완전 삭제)
+  const allDates = [...new Set(Object.keys(counselByDate))]
     .sort((a, b) => a.localeCompare(b));
 
   const modal = document.getElementById('modal-detail-view');
@@ -2237,7 +2260,7 @@ function openStudentPersonalCounselModal(studentId) {
   titleEl.textContent = `📄 개인 기본자료 및 상담 기록 (${stu.studentNo} ${stu.name})`;
 
   const counselsTimelineHtml = allDates.length === 0
-    ? `<p style="color:#6c757d; padding:0.75rem 0;">등록된 상담 기록 및 기본자료 변동 내역이 없습니다.</p>`
+    ? `<p style="color:#6c757d; padding:0.75rem 0;">등록된 상담 기록이 없습니다.</p>`
     : `
       <div class="scroll-10-rows">
         <table class="detail-table">
@@ -2405,11 +2428,12 @@ function buildStudentPersonalWordHtml(studentId) {
     counselByDate[c.date].push(c.content);
   });
 
-  const allDates = [...new Set([...Object.keys(historyByDate), ...Object.keys(counselByDate)])]
+  // 상담 내용이 실제로 존재하는 날짜만 추출 (상담 삭제 시 Word에서도 즉시 완전 삭제)
+  const allDates = [...new Set(Object.keys(counselByDate))]
     .sort((a, b) => a.localeCompare(b));
 
   const counselsRowsHtml = allDates.length === 0
-    ? `<tr><td colspan="3" style="text-align:center; color:#666;">등록된 상담 기록 및 기본자료 변동 내역이 없습니다.</td></tr>`
+    ? `<tr><td colspan="3" style="text-align:center; color:#666; padding:12px;">등록된 상담 기록이 없습니다.</td></tr>`
     : allDates.map(d => {
       const changes = historyByDate[d] || [];
       const contents = counselByDate[d] || [];
