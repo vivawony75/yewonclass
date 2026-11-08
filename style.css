@@ -1226,7 +1226,8 @@ td.cell-total50-active {
 }
 
 #modal-detail-view .modal-box {
-  max-width: 840px;
+  max-width: 1040px;
+  width: 95vw;
 }
 
 #modal-basic-info .modal-box,
@@ -1423,15 +1424,125 @@ td.cell-total50-active {
   font-weight: 700;
 }
 
+/* 상단 기본자료 요약 테이블 - 열/행 높이를 대폭 줄여 공간 절약 */
+.detail-basic-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-bottom: 0.6rem !important;
+}
+
+.detail-basic-table th,
+.detail-basic-table td {
+  border: 1px solid #e3ded7;
+  padding: 0.22rem 0.55rem !important;
+  line-height: 1.35 !important;
+  font-size: 0.82rem !important;
+}
+
+.detail-basic-table th {
+  width: 110px !important;
+  background: #fff9db !important;
+  font-weight: 700;
+  color: #495057;
+  white-space: nowrap;
+}
+
+/* 2. 날짜별 기본자료 변동 및 상담 내용 전용 스크롤 컨테이너 */
+.timeline-table-scroll-wrap {
+  max-height: 520px;
+  min-height: 220px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid #dcd7d0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.timeline-table-scroll-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f1f7fc !important;
+  border-bottom: 2px solid #b6d4fe !important;
+  padding: 0.55rem 0.75rem;
+}
+
 .detail-content-scroll {
-  max-height: 4.8em;
-  line-height: 1.5em;
+  line-height: 1.6em;
   overflow-y: auto;
   white-space: pre-wrap;
 }
 
+/* 개인 기본자료 및 상담기록 내용보기 표 (기본자료변동:상담내용 = 4:6 비율) */
+.detail-timeline-table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detail-timeline-table th.col-date,
+.detail-timeline-table td.col-date {
+  width: 110px !important;
+  text-align: center;
+}
+
+.detail-timeline-table th.col-changes,
+.detail-timeline-table td.col-changes {
+  width: 36% !important;
+  width: calc((100% - 110px) * 0.4) !important;
+  text-align: left;
+}
+
+.detail-timeline-table th.col-content,
+.detail-timeline-table td.col-content {
+  width: 54% !important;
+  width: calc((100% - 110px) * 0.6) !important;
+  text-align: left;
+}
+
+.detail-timeline-table td.col-content {
+  padding: 0.6rem 0.75rem !important;
+  background: #ffffff;
+}
+
+.detail-timeline-table td.col-changes {
+  padding: 0.6rem 0.75rem !important;
+  background: #fdfefe;
+}
+
+.detail-timeline-table td.col-date {
+  padding: 0.6rem 0.4rem !important;
+}
+
+/* 상담 내용 카드/칸 높이 충분히 확보 (최소 높이 95px, 넉넉한 최대 높이) */
+.detail-timeline-table .detail-content-scroll {
+  min-height: 95px;
+  max-height: 320px;
+  line-height: 1.6;
+  font-size: 0.9rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 0.55rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.detail-timeline-table .detail-content-empty {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  color: #adb5bd;
+  font-size: 0.88rem;
+  padding: 0.25rem 0.5rem;
+}
+
 .history-blue-text {
-  color: #1971c2;
+  color: #1971c2 !important;
   font-weight: 700;
   font-size: 0.88rem;
   line-height: 1.45;

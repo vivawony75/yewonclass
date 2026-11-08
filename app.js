@@ -3227,9 +3227,9 @@ function renderCounselRecordsTable(studentId) {
           <td>
             <textarea
               class="inp-row-content"
-              rows="2"
+              rows="3"
               placeholder="${escapeHtml(placeholderText)}"
-              style="width:100%; padding:0.45rem 0.65rem; border:1.5px solid ${isMilestone ? '#d90429' : '#2b8a3e'}; border-radius:6px; font-family:inherit; font-size:0.88rem; resize:vertical; min-height:55px;"
+              style="width:100%; padding:0.5rem 0.65rem; border:1.5px solid ${isMilestone ? '#d90429' : '#2b8a3e'}; border-radius:6px; font-family:inherit; font-size:0.88rem; resize:vertical; min-height:85px; line-height:1.5;"
             >${escapeHtml(item.content || '')}</textarea>
           </td>
           <td style="text-align:center; vertical-align:middle;">
@@ -3262,7 +3262,7 @@ function renderCounselRecordsTable(studentId) {
           ${dateCellHtml}
         </td>
         <td style="text-align:left; vertical-align:middle;">
-          <div class="detail-content-scroll" style="white-space:pre-wrap; max-height:85px; overflow-y:auto; line-height:1.5;">${escapeHtml(item.content)}</div>
+          <div class="detail-content-scroll" style="white-space:pre-wrap; min-height:65px; max-height:240px; overflow-y:auto; line-height:1.6; padding:0.4rem 0.6rem; background:#fbfdff; border-radius:6px; border:1px solid #edf2f7;">${escapeHtml(item.content)}</div>
         </td>
         <td style="text-align:center; vertical-align:middle;">
           <div class="row-action-btns">
@@ -3385,29 +3385,36 @@ function openStudentPersonalCounselModal(studentId) {
     .filter(c => c.studentId === studentId)
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-  // 기본자료 변동 이력
+  // 기본자료 변동 이력 (처음 저장 이후 변동된 내역만 추출)
   const stuHistories = (state.basicInfoHistory && state.basicInfoHistory[studentId])
     ? state.basicInfoHistory[studentId]
     : [];
 
   const historyByDate = {};
   stuHistories.forEach(h => {
+    if (!h.date) return;
     if (!historyByDate[h.date]) historyByDate[h.date] = [];
-    if (Array.isArray(h.changes)) {
-      historyByDate[h.date].push(...h.changes);
-    } else if (typeof h.changesText === 'string') {
-      historyByDate[h.date].push(h.changesText);
-    }
+    const validChanges = Array.isArray(h.changes)
+      ? h.changes.filter(ch => typeof ch === 'string' && (ch.includes('->') || ch.includes('선택') || ch.includes('해제') || ch.includes('제안')))
+      : (typeof h.changesText === 'string' ? [h.changesText] : []);
+    historyByDate[h.date].push(...validChanges);
+  });
+
+  // 유효한 변동사항이 없는 날짜 키 정리
+  Object.keys(historyByDate).forEach(d => {
+    if (historyByDate[d].length === 0) delete historyByDate[d];
   });
 
   const counselByDate = {};
   stuCounsels.forEach(c => {
+    if (!c.date) return;
     if (!counselByDate[c.date]) counselByDate[c.date] = [];
     counselByDate[c.date].push(c.content);
   });
 
-  // 상담 내용이 실제로 존재하는 날짜만 추출 (상담 삭제 시 타임라인에서도 즉시 완전 삭제)
-  const allDates = [...new Set(Object.keys(counselByDate))]
+  // 상담 내용 또는 기본자료 변동이 존재하는 모든 날짜를 추출하여 행 생성 (날짜 자동설정으로 행 추가)
+  const allDates = [...new Set([...Object.keys(counselByDate), ...Object.keys(historyByDate)])]
+    .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
 
   const modal = document.getElementById('modal-detail-view');
@@ -3417,15 +3424,20 @@ function openStudentPersonalCounselModal(studentId) {
   titleEl.textContent = `📄 개인 기본자료 및 상담 기록 (${stu.studentNo} ${stu.name})`;
 
   const counselsTimelineHtml = allDates.length === 0
-    ? `<p style="color:#6c757d; padding:0.75rem 0;">등록된 상담 기록이 없습니다.</p>`
+    ? `<p style="color:#6c757d; padding:0.75rem 0;">등록된 상담 기록 및 기본자료 변동 이력이 없습니다.</p>`
     : `
-      <div class="scroll-10-rows">
-        <table class="detail-table">
+      <div class="timeline-table-scroll-wrap">
+        <table class="detail-table detail-timeline-table" style="table-layout: fixed; width: 100%;">
+          <colgroup>
+            <col class="col-date" style="width: 110px;" />
+            <col class="col-changes" style="width: calc((100% - 110px) * 0.4);" />
+            <col class="col-content" style="width: calc((100% - 110px) * 0.6);" />
+          </colgroup>
           <thead>
             <tr>
-              <th style="width:115px; text-align:center;">상담 날짜</th>
-              <th style="width:250px; text-align:left;">기본자료 변동</th>
-              <th style="text-align:left;">상담 내용</th>
+              <th class="col-date" style="width:110px; text-align:center;">날짜</th>
+              <th class="col-changes" style="width:calc((100% - 110px) * 0.4); text-align:left;">기본자료 변동</th>
+              <th class="col-content" style="width:calc((100% - 110px) * 0.6); text-align:left;">상담 내용</th>
             </tr>
           </thead>
           <tbody>
@@ -3433,17 +3445,17 @@ function openStudentPersonalCounselModal(studentId) {
               const changes = historyByDate[d] || [];
               const contents = counselByDate[d] || [];
               const changesHtml = changes.length > 0
-                ? changes.map(ch => `<div class="history-blue-text">${escapeHtml(ch)}</div>`).join('')
+                ? changes.map(ch => `<div class="history-blue-text" style="color:#1971c2; font-weight:700;">${escapeHtml(ch)}</div>`).join('')
                 : `<span style="color:#aaa;">-</span>`;
               const contentsHtml = contents.length > 0
-                ? contents.map(content => `<div class="detail-content-scroll">${escapeHtml(content)}</div>`).join('<hr style="margin:6px 0; border:0; border-top:1px dashed #ddd;"/>')
-                : `<span style="color:#aaa; font-size:0.85rem;">(상담내용 없음)</span>`;
+                ? contents.map(content => `<div class="detail-content-scroll">${escapeHtml(content)}</div>`).join('<hr style="margin:8px 0; border:0; border-top:1px dashed #d0d7de;"/>')
+                : `<div class="detail-content-empty">-</div>`;
 
               return `
                 <tr>
-                  <td style="text-align:center; font-weight:700; background:#fffdf5; vertical-align:top;">${escapeHtml(d)}</td>
-                  <td style="vertical-align:top;">${changesHtml}</td>
-                  <td style="vertical-align:top;">${contentsHtml}</td>
+                  <td class="col-date" style="text-align:center; font-weight:700; background:#fffdf5; vertical-align:top; word-break:break-all;">${escapeHtml(d)}</td>
+                  <td class="col-changes" style="vertical-align:top; word-break:break-word;">${changesHtml}</td>
+                  <td class="col-content" style="vertical-align:top; word-break:break-word;">${contentsHtml}</td>
                 </tr>
               `;
             }).join('')}
@@ -3462,22 +3474,22 @@ function openStudentPersonalCounselModal(studentId) {
     : '<span style="color:#888;">(현재 조건에 해당하는 자동 제안 없음)</span>';
 
   bodyEl.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; background:#f8f9fa; padding:0.6rem 0.9rem; border-radius:10px; border:1px solid #dee2e6; margin-bottom:1rem;">
-      <div style="font-size:0.88rem; color:#495057;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem; background:#f8f9fa; padding:0.4rem 0.75rem; border-radius:8px; border:1px solid #dee2e6; margin-bottom:0.55rem;">
+      <div style="font-size:0.85rem; color:#495057;">
         학생 <strong>${escapeHtml(stu.studentNo)} ${escapeHtml(stu.name)}</strong>의 최신 기본자료와 날짜별 상담 기록입니다.
       </div>
-      <div style="display:flex; gap:0.4rem;">
-        <button type="button" class="btn btn-sky" onclick="openBasicInfoModal('${stu.id}')" style="padding:0.3rem 0.65rem; font-size:0.8rem;">
+      <div style="display:flex; gap:0.35rem;">
+        <button type="button" class="btn btn-sky" onclick="openBasicInfoModal('${stu.id}')" style="padding:0.25rem 0.6rem; font-size:0.78rem;">
           📋 기본자료 관리
         </button>
-        <button type="button" class="btn btn-green" onclick="openCounselModal('${stu.id}')" style="padding:0.3rem 0.65rem; font-size:0.8rem;">
+        <button type="button" class="btn btn-green" onclick="openCounselModal('${stu.id}')" style="padding:0.25rem 0.6rem; font-size:0.78rem;">
           💬 새 상담 작성/수정
         </button>
       </div>
     </div>
 
-    <h4 style="margin-bottom:0.35rem; color:#d84b73;">📋 1. 학생 기본자료 (현재 최신 내용)</h4>
-    <table class="detail-table" style="margin-bottom: 1.2rem;">
+    <h4 style="margin-bottom:0.25rem; font-size:0.95rem; color:#d84b73;">📋 1. 학생 기본자료 (현재 최신 내용)</h4>
+    <table class="detail-table detail-basic-table" style="margin-bottom: 0.6rem;">
       <tr>
         <th>학번 / 이름</th>
         <td><strong>${escapeHtml(stu.studentNo)}</strong> / <strong>${escapeHtml(stu.name)}</strong></td>
@@ -3486,7 +3498,7 @@ function openStudentPersonalCounselModal(studentId) {
         <th>출결사항</th>
         <td>
           미인정(A): <strong>${stats.countA1}일</strong> |
-          모든결석(A+B): <strong>${stats.totalAll}일</strong> (A: ${stats.countA1}일, B: ${stats.countA2}일) ${stats.isTotalAll50 ? '<span class="mini-badge t50">50일 이상 (주황색)</span>' : ''}<br/>
+          모든결석(A+B): <strong>${stats.totalAll}일</strong> (A: ${stats.countA1}일, B: ${stats.countA2}일) ${stats.isTotalAll50 ? '<span class="mini-badge t50">50일 이상 (주황색)</span>' : ''} |
           연속5일(A): <strong>${stats.isStreak5 ? `해당 (연속 ${stats.maxConsecutiveA1}일 - 노란색)` : '미해당'}</strong> |
           누적35일(A): <strong>${stats.isTotal35 ? '해당 (초록색)' : '미해당'}</strong>
         </td>
@@ -3503,7 +3515,7 @@ function openStudentPersonalCounselModal(studentId) {
       </tr>
     </table>
 
-    <h4 style="margin-bottom:0.35rem; color:#1e6091;">💬 2. 날짜별 기본자료 변동 및 상담 내용</h4>
+    <h4 style="margin-bottom:0.3rem; font-size:0.95rem; color:#1e6091;">💬 2. 날짜별 기본자료 변동 및 상담 내용</h4>
     ${counselsTimelineHtml}
   `;
 
@@ -3627,26 +3639,32 @@ function buildStudentPersonalWordHtml(studentId) {
 
   const historyByDate = {};
   stuHistories.forEach(h => {
+    if (!h.date) return;
     if (!historyByDate[h.date]) historyByDate[h.date] = [];
-    if (Array.isArray(h.changes)) {
-      historyByDate[h.date].push(...h.changes);
-    } else if (typeof h.changesText === 'string') {
-      historyByDate[h.date].push(h.changesText);
-    }
+    const validChanges = Array.isArray(h.changes)
+      ? h.changes.filter(ch => typeof ch === 'string' && (ch.includes('->') || ch.includes('선택') || ch.includes('해제') || ch.includes('제안')))
+      : (typeof h.changesText === 'string' ? [h.changesText] : []);
+    historyByDate[h.date].push(...validChanges);
+  });
+
+  Object.keys(historyByDate).forEach(d => {
+    if (historyByDate[d].length === 0) delete historyByDate[d];
   });
 
   const counselByDate = {};
   stuCounsels.forEach(c => {
+    if (!c.date) return;
     if (!counselByDate[c.date]) counselByDate[c.date] = [];
     counselByDate[c.date].push(c.content);
   });
 
-  // 상담 내용이 실제로 존재하는 날짜만 추출 (상담 삭제 시 Word에서도 즉시 완전 삭제)
-  const allDates = [...new Set(Object.keys(counselByDate))]
+  // 상담 내용 또는 기본자료 변동이 존재하는 모든 날짜 추출
+  const allDates = [...new Set([...Object.keys(counselByDate), ...Object.keys(historyByDate)])]
+    .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
 
   const counselsRowsHtml = allDates.length === 0
-    ? `<tr><td colspan="3" style="text-align:center; color:#666; padding:12px;">등록된 상담 기록이 없습니다.</td></tr>`
+    ? `<tr><td colspan="3" style="text-align:center; color:#666; padding:12px;">등록된 상담 기록 및 기본자료 변동 이력이 없습니다.</td></tr>`
     : allDates.map(d => {
       const changes = historyByDate[d] || [];
       const contents = counselByDate[d] || [];
@@ -3655,7 +3673,7 @@ function buildStudentPersonalWordHtml(studentId) {
         : `<span style="color:#999;">-</span>`;
       const contentsHtml = contents.length > 0
         ? contents.map(c => `<div style="white-space:pre-wrap;">${escapeHtml(c)}</div>`).join('<hr style="margin:4px 0; border:0; border-top:1px dashed #ccc;"/>')
-        : `<span style="color:#999;">(상담내용 없음)</span>`;
+        : `<span style="color:#999;">-</span>`;
 
       const milestoneItem = stuCounsels.find(c => c.date === d && c.isMilestone);
       const dateHtml = milestoneItem
@@ -3664,9 +3682,9 @@ function buildStudentPersonalWordHtml(studentId) {
 
       return `
         <tr>
-          <td style="width:120px; text-align:center; background:#fffdf5; vertical-align:top;">${dateHtml}</td>
-          <td style="vertical-align:top; width:220px;">${changesHtml}</td>
-          <td style="vertical-align:top;">${contentsHtml}</td>
+          <td style="width:110px; text-align:center; background:#fffdf5; vertical-align:top;">${dateHtml}</td>
+          <td style="vertical-align:top; width:36%;">${changesHtml}</td>
+          <td style="vertical-align:top; width:54%;">${contentsHtml}</td>
         </tr>
       `;
     }).join('');
@@ -3712,12 +3730,17 @@ function buildStudentPersonalWordHtml(studentId) {
     </table>
 
     <h2>2. 날짜별 상담 내용 및 기본자료 변동 (${allDates.length}건)</h2>
-    <table>
+    <table style="width:100%; table-layout:fixed; border-collapse:collapse;">
+      <colgroup>
+        <col style="width: 110px;" />
+        <col style="width: 36%;" />
+        <col style="width: 54%;" />
+      </colgroup>
       <thead>
         <tr>
-          <th style="width:110px; text-align:center;">상담 날짜</th>
-          <th style="width:220px; text-align:left;">기본자료 변동</th>
-          <th>상담 내용</th>
+          <th style="width:110px; text-align:center;">날짜</th>
+          <th style="width:36%; text-align:left;">기본자료 변동</th>
+          <th style="width:54%; text-align:left;">상담 내용</th>
         </tr>
       </thead>
       <tbody>
@@ -4350,39 +4373,30 @@ document.addEventListener('DOMContentLoaded', () => {
       diffList.push(`지도방안(직접): ${oldInfo.guidanceCustom || '없음'} -> ${guidanceCustom || '없음'}`);
     }
 
-    // 초기 등록 시 또는 기존 변경 이력이 없는 경우에도 첫 저장 내용을 diffList에 등록
-    if (diffList.length === 0 && (!state.basicInfoHistory?.[stuId] || state.basicInfoHistory[stuId].length === 0)) {
-      schema.forEach(cat => {
-        const { selected, etc } = getCategoryValues({
-          familyTypes: newFamilyTypes,
-          familyEtc: newFamilyEtc,
-          economicStatus: newEconomicStatus,
-          careerHopes: newCareerHopes,
-          careerEtc: newCareerEtc,
-          attitudePositive: newAttitudePositive,
-          attitudePosEtc: newAttitudePosEtc,
-          problemBehaviors: newProblemBehaviors,
-          attitudeNegEtc: newAttitudeNegEtc,
-          customValues: newCustomValues
-        }, cat.id);
-        const formatted = selected.map(x => (x === '기타' && etc) ? `기타(${etc})` : x).join(', ');
-        if (formatted) diffList.push(`${cat.name}: ${formatted}`);
-      });
-    }
+    // 기본자료 처음 저장 여부 판별 (기존 저장된 recordDate가 없거나 데이터가 비어있는 경우)
+    const isFirstSave = !state.basicInfos || !state.basicInfos[stuId] || !state.basicInfos[stuId].recordDate;
 
-    // 변경 내역이 있고 날짜가 지정된 경우 해당 날짜로 diff 기록
-    if (diffList.length > 0 && recordDate) {
-      if (!state.basicInfoHistory) state.basicInfoHistory = {};
-      if (!state.basicInfoHistory[stuId]) state.basicInfoHistory[stuId] = [];
-      const existingHistory = state.basicInfoHistory[stuId].find(h => h.date === recordDate);
-      if (existingHistory) {
-        if (!Array.isArray(existingHistory.changes)) existingHistory.changes = [];
-        existingHistory.changes.push(...diffList);
-      } else {
-        state.basicInfoHistory[stuId].push({
-          date: recordDate,
-          changes: diffList
-        });
+    // 기본자료 처음 저장한 이후, 그 다음부터 변동한 것은 날짜 자동설정해서 행을 만들고 기본자료변동란에 파란색으로 기재
+    if (isFirstSave) {
+      // 처음 등록/저장 시에는 변동 이력(diff) 행을 생성하지 않고 기본자료 초기값으로만 저장
+      if (state.basicInfoHistory && state.basicInfoHistory[stuId]) {
+        delete state.basicInfoHistory[stuId];
+      }
+    } else {
+      // 처음 저장 이후 변동이 발생한 경우에만 날짜 자동설정하여 이력에 기록
+      if (diffList.length > 0 && recordDate) {
+        if (!state.basicInfoHistory) state.basicInfoHistory = {};
+        if (!state.basicInfoHistory[stuId]) state.basicInfoHistory[stuId] = [];
+        const existingHistory = state.basicInfoHistory[stuId].find(h => h.date === recordDate);
+        if (existingHistory) {
+          if (!Array.isArray(existingHistory.changes)) existingHistory.changes = [];
+          existingHistory.changes = [...new Set([...existingHistory.changes, ...diffList])];
+        } else {
+          state.basicInfoHistory[stuId].push({
+            date: recordDate,
+            changes: diffList
+          });
+        }
       }
     }
 
