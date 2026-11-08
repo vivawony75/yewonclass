@@ -15,17 +15,7 @@ const ADMIN_CREDENTIALS = {
   aliasIds: ['admin', '관리자', 'administrator', 'master', 'root', 'yewon'],
   pw: 'admin4441#',
   fallbackPws: [
-    'admin4441#',
-    'admin4441',
-    'admin',
-    'admin1234',
-    'yewon4441#',
-    'yewon4441',
-    'yewon',
-    '1234',
-    '123456',
-    '4441',
-    '예성원'
+    'admin4441#'
   ]
 };
 
@@ -1119,7 +1109,7 @@ function getStudentBasicInfo(studentId) {
     recordDate: raw.recordDate || '',
     familyTypes: Array.isArray(raw.familyTypes) ? raw.familyTypes : [],
     familyEtc: raw.familyEtc || '',
-    economicStatus: raw.economicStatus || '중',
+    economicStatus: raw.economicStatus || '',
     careerHopes: Array.isArray(raw.careerHopes) ? raw.careerHopes : [],
     careerEtc: raw.careerEtc || '',
     attitudePositive: Array.isArray(raw.attitudePositive) ? raw.attitudePositive : [],
@@ -1139,8 +1129,8 @@ function getCategoryValues(info, catId) {
     return { selected: Array.isArray(info.familyTypes) ? info.familyTypes : [], etc: info.familyEtc || '' };
   }
   if (catId === 'economicStatus') {
-    const val = info.economicStatus || '중';
-    return { selected: [val], etc: '' };
+    const val = info.economicStatus || '';
+    return { selected: val ? [val] : [], etc: '' };
   }
   if (catId === 'careerHope') {
     return { selected: Array.isArray(info.careerHopes) ? info.careerHopes : [], etc: info.careerEtc || '' };
@@ -1227,6 +1217,9 @@ function formatGuidanceText(info) {
 }
 
 function renderBasicInfoSummaryBadges(studentId) {
+  if (!state.basicInfos || !state.basicInfos[studentId] || !state.basicInfos[studentId].recordDate) {
+    return `<span style="color:#888; font-size:0.8rem;">미입력</span>`;
+  }
   const info = getStudentBasicInfo(studentId);
   const schema = getBasicInfoSchema();
   const parts = [];
@@ -1326,9 +1319,14 @@ function renderBasicInfoSection() {
         <td><strong>${escapeHtml(stu.studentNo)}</strong></td>
         <td><strong>${escapeHtml(stu.name)}</strong></td>
         <td>
-          <button class="btn btn-sky btn-open-basic-info" data-stu-id="${stu.id}">
-            📋 기본자료 설정
-          </button>
+          <div style="display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+            <button class="btn btn-sky btn-open-basic-info" data-stu-id="${stu.id}">
+              📋 기본자료 설정
+            </button>
+            <button class="btn btn-danger-sm btn-reset-basic-info" data-stu-id="${stu.id}" title="${escapeHtml(stu.name)} 학생의 기본자료를 모두 지우고 초기화합니다.">
+              <i data-lucide="rotate-ccw" style="width:13px; height:13px; vertical-align:middle; margin-right:2px;"></i>초기화
+            </button>
+          </div>
         </td>
         <td style="font-weight:700; color:#1971c2;">${escapeHtml(dateDisplay)}</td>
         <td style="text-align:left;">${summaryBadges}</td>
@@ -1340,6 +1338,13 @@ function renderBasicInfoSection() {
     btn.addEventListener('click', () => {
       const stuId = btn.getAttribute('data-stu-id');
       openBasicInfoModal(stuId);
+    });
+  });
+
+  tbody.querySelectorAll('.btn-reset-basic-info').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stuId = btn.getAttribute('data-stu-id');
+      resetStudentBasicInfo(stuId);
     });
   });
 }
@@ -1670,7 +1675,7 @@ function renderHomeroomCounselTable() {
     return;
   }
 
-  const sorted = [...state.counselings].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const sorted = [...state.counselings].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   tbody.innerHTML = sorted.map(item => {
     const shortContent = item.content.length > 32 ? item.content.slice(0, 32) + '...' : item.content;
@@ -1702,8 +1707,8 @@ function renderHomeroomCounselTable() {
       const cid = btn.getAttribute('data-cid');
       const item = state.counselings.find(c => c.id === cid);
       if (item) {
-        // [상담관리]의 통합 모달과 완벽 동기화 (최신 기본자료 + 상담 목록 노출)
-        openCounselModal(item.studentId);
+        // 기본자료와 상담내용이 한 페이지에 보이게 상세 모달 열기
+        openStudentPersonalCounselModal(item.studentId);
       }
     });
   });
@@ -1774,8 +1779,8 @@ function renderHomeroomAttendanceCareTable() {
   tbody.querySelectorAll('.btn-care-homeroom-view').forEach(btn => {
     btn.addEventListener('click', () => {
       const stuId = btn.getAttribute('data-stuid');
-      // [상담관리]의 최신 통합 모달 열기 (기본자료 + 상담 목록 노출)
-      openCounselModal(stuId);
+      // 기본자료와 상담내용이 한 페이지에 보이게 상세 모달 열기
+      openStudentPersonalCounselModal(stuId);
     });
   });
 
@@ -2372,8 +2377,8 @@ function renderAdminCounselTable() {
     return;
   }
 
-  // 최신순 정렬
-  const sorted = [...state.counselings].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  // 날짜 순서대로 위에서 아래로 배열 (오름차순)
+  const sorted = [...state.counselings].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   tbody.innerHTML = sorted.map(item => {
     const shortContent = item.content.length > 32 ? item.content.slice(0, 32) + '...' : item.content;
@@ -2404,7 +2409,7 @@ function renderAdminCounselTable() {
     btn.addEventListener('click', () => {
       const cid = btn.getAttribute('data-cid');
       const item = state.counselings.find(c => c.id === cid);
-      if (item) openCounselModal(item.studentId);
+      if (item) openStudentPersonalCounselModal(item.studentId);
     });
   });
 
@@ -2476,7 +2481,7 @@ function renderAdminAttendanceCareTable() {
   tbody.querySelectorAll('.btn-care-view').forEach(btn => {
     btn.addEventListener('click', () => {
       const stuId = btn.getAttribute('data-stuid');
-      openCounselModal(stuId);
+      openStudentPersonalCounselModal(stuId);
     });
   });
 
@@ -2842,6 +2847,58 @@ let currentCounselStudentId = null;
 let tempCounselRows = [];
 let editingCounselIds = new Set();
 
+// -------------------- 학생 개인별 기본자료 완전 초기화 --------------------
+function resetStudentBasicInfo(studentId, confirmPrompt = true) {
+  const stu = state.students.find(s => s.id === studentId);
+  if (!stu) return;
+
+  if (confirmPrompt) {
+    const ok = confirm(`[${stu.studentNo} ${stu.name}] 학생의 기본자료를 모두 초기화(다 지우기)하시겠습니까?\n\n• 체크된 모든 항목(가정형태, 진로희망, 생활태도 등)이 해제됩니다.\n• 직접 입력된 내용 및 지도방안이 삭제됩니다.\n• 수정 날짜 및 저장 이력이 모두 삭제됩니다.`);
+    if (!ok) return;
+  }
+
+  // 1) state.basicInfos 에서 해당 학생 데이터 완전 제거
+  if (state.basicInfos) {
+    delete state.basicInfos[studentId];
+  }
+  // 2) state.basicInfoHistory 에서 해당 학생 이력 완전 제거
+  if (state.basicInfoHistory) {
+    delete state.basicInfoHistory[studentId];
+  }
+  // 3) accountsData 내 모든 계정의 basicInfos & basicInfoHistory 에서도 완전 제거
+  if (state.accountsData && typeof state.accountsData === 'object') {
+    Object.keys(state.accountsData).forEach(accId => {
+      const acc = state.accountsData[accId];
+      if (acc) {
+        if (acc.basicInfos && acc.basicInfos[studentId]) {
+          delete acc.basicInfos[studentId];
+        }
+        if (acc.basicInfoHistory && acc.basicInfoHistory[studentId]) {
+          delete acc.basicInfoHistory[studentId];
+        }
+      }
+    });
+  }
+
+  // 4) 로컬 저장 및 클라우드 동기화
+  saveState();
+
+  // 5) 만약 기본자료 모달이 열려 있고 현재 학생이면 폼 내용 즉시 재로딩
+  const modal = document.getElementById('modal-student-basic-info');
+  if (modal && !modal.classList.contains('hidden') && currentBasicStudentId === studentId) {
+    loadStudentToBasicInfoModal(studentId);
+  }
+
+  // 6) 테이블 등 뷰 전체 즉각 재렌더링
+  renderAll();
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+
+  alert(`[${stu.studentNo} ${stu.name}] 학생의 기본자료가 성공적으로 초기화(전체 삭제)되었습니다.`);
+}
+
 // -------------------- 6-1. [학생기본자료] 모달 --------------------
 function openBasicInfoModal(selectedStudentId = null) {
   if (state.students.length === 0) {
@@ -3006,8 +3063,87 @@ function loadStudentToCounselModal(studentId) {
   if (numEl) numEl.textContent = stu.studentNo;
   if (nameEl) nameEl.textContent = stu.name;
 
+  // 기본자료 요약 카드 렌더링 (한 페이지에서 기본자료 + 상담내용 동시 열람)
+  renderCounselModalBasicInfo(studentId);
+
   // 상담 기록 테이블 렌더링
   renderCounselRecordsTable(studentId);
+}
+
+function renderCounselModalBasicInfo(studentId) {
+  const box = document.getElementById('counsel-modal-basic-info-box');
+  if (!box) return;
+
+  const stu = state.students.find(s => s.id === studentId);
+  if (!stu) {
+    box.innerHTML = '';
+    return;
+  }
+
+  const basic = getStudentBasicInfo(studentId);
+  const stats = calculateStudentAttendanceStats(studentId);
+  const schema = getBasicInfoSchema();
+
+  const autoTags = (basic.guidanceAuto && basic.guidanceAuto.length > 0)
+    ? basic.guidanceAuto
+    : calculateAutoGuidance(basic);
+  const guidanceDisplay = [
+    ...autoTags.map(t => `[${t}]`),
+    basic.guidanceCustom
+  ].filter(Boolean).join(' ') || '해당 없음';
+
+  const schemaItemsHtml = schema.map(cat => {
+    const val = formatCategoryText(basic, cat);
+    return `
+      <div style="display:flex; gap:0.4rem; font-size:0.83rem; padding:0.25rem 0;">
+        <span style="font-weight:700; color:#1971c2; min-width:85px; white-space:nowrap;">${escapeHtml(cat.name)}:</span>
+        <span style="color:#333; font-weight:600;">${escapeHtml(val)}</span>
+      </div>
+    `;
+  }).join('');
+
+  box.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem; border-bottom:1.5px solid #e7f5ff; padding-bottom:0.45rem;">
+      <div style="display:flex; align-items:center; gap:0.4rem;">
+        <span style="font-size:1.15rem;">📋</span>
+        <h4 style="margin:0; font-size:0.98rem; color:#1971c2; font-weight:800;">학생 기본자료 (현재 최신 설정)</h4>
+        <span style="font-size:0.78rem; color:#868e96; font-weight:600;">${basic.recordDate ? `(수정일: ${basic.recordDate})` : '(저장 이력 없음)'}</span>
+      </div>
+      <button type="button" class="btn btn-sky btn-open-basic-from-counsel" data-stu-id="${stu.id}" style="padding:0.28rem 0.65rem; font-size:0.8rem;">
+        ✏️ 기본자료 설정/수정
+      </button>
+    </div>
+
+    <!-- 출결 현황 미니 배지 -->
+    <div style="margin-bottom:0.55rem;">
+      <div style="font-size:0.8rem; font-weight:700; color:#495057; margin-bottom:0.25rem;">📊 출결사항 요약:</div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+        <span class="mini-badge a1">미인정(A): ${stats.countA1}일</span>
+        <span class="mini-badge ${stats.isTotalAll50 ? 't50' : 'a2'}">모든결석(A+B): ${stats.totalAll}일 ${stats.isTotalAll50 ? '(50일 이상)' : ''}</span>
+        <span class="mini-badge ${stats.isStreak5 ? 's5' : ''}">
+          미인정 연속 5일: ${stats.isStreak5 ? `해당 (${stats.streak5DateStr || '-'})` : '미해당'}
+        </span>
+        <span class="mini-badge ${stats.isTotal35 ? 't35' : ''}">
+          미인정 누적 35일: ${stats.isTotal35 ? `해당 (${stats.total35DateStr || '-'})` : '미해당'}
+        </span>
+      </div>
+    </div>
+
+    <!-- 기본 항목 그리드 -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.2rem 0.8rem; background:#fff; padding:0.6rem 0.8rem; border-radius:8px; border:1px solid #d0ebff;">
+      ${schemaItemsHtml}
+    </div>
+
+    <!-- 지도방안 -->
+    <div style="margin-top:0.5rem; background:#fff4e6; padding:0.45rem 0.75rem; border-radius:8px; border:1px solid #ffd8a8; font-size:0.83rem;">
+      <span style="font-weight:800; color:#d9480f;">💡 [지도방안]:</span>
+      <span style="color:#495057; font-weight:600; margin-left:0.3rem;">${escapeHtml(guidanceDisplay)}</span>
+    </div>
+  `;
+
+  box.querySelector('.btn-open-basic-from-counsel')?.addEventListener('click', () => {
+    openBasicInfoModal(stu.id);
+  });
 }
 
 // 구버전 및 타 함수 호환용 래퍼
@@ -3326,6 +3462,20 @@ function openStudentPersonalCounselModal(studentId) {
     : '<span style="color:#888;">(현재 조건에 해당하는 자동 제안 없음)</span>';
 
   bodyEl.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; background:#f8f9fa; padding:0.6rem 0.9rem; border-radius:10px; border:1px solid #dee2e6; margin-bottom:1rem;">
+      <div style="font-size:0.88rem; color:#495057;">
+        학생 <strong>${escapeHtml(stu.studentNo)} ${escapeHtml(stu.name)}</strong>의 최신 기본자료와 날짜별 상담 기록입니다.
+      </div>
+      <div style="display:flex; gap:0.4rem;">
+        <button type="button" class="btn btn-sky" onclick="openBasicInfoModal('${stu.id}')" style="padding:0.3rem 0.65rem; font-size:0.8rem;">
+          📋 기본자료 관리
+        </button>
+        <button type="button" class="btn btn-green" onclick="openCounselModal('${stu.id}')" style="padding:0.3rem 0.65rem; font-size:0.8rem;">
+          💬 새 상담 작성/수정
+        </button>
+      </div>
+    </div>
+
     <h4 style="margin-bottom:0.35rem; color:#d84b73;">📋 1. 학생 기본자료 (현재 최신 내용)</h4>
     <table class="detail-table" style="margin-bottom: 1.2rem;">
       <tr>
@@ -3839,11 +3989,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     const isIdValid = validIds.includes(normId);
 
-    const validPws = [
-      ADMIN_CREDENTIALS.pw.normalize('NFC'),
-      ...((ADMIN_CREDENTIALS.fallbackPws || []).map(p => p.normalize('NFC')))
-    ];
-    const isPwValid = validPws.some(p => p === normPw || p.toLowerCase() === normPwLower);
+    // 관리자 비번은 오직 admin4441# 하나로만 로그인 가능
+    const isPwValid = (normPw === ADMIN_CREDENTIALS.pw);
 
     return isIdValid && isPwValid;
   }
@@ -4163,7 +4310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         newFamilyTypes = selectedValues;
         newFamilyEtc = etcVal;
       } else if (cat.id === 'economicStatus') {
-        newEconomicStatus = selectedValues[0] || '중';
+        newEconomicStatus = selectedValues[0] || '';
       } else if (cat.id === 'careerHope') {
         newCareerHopes = selectedValues;
         newCareerEtc = etcVal;
@@ -4264,6 +4411,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSaveBasic = document.getElementById('btn-save-basic-info');
   if (btnSaveBasic) {
     btnSaveBasic.addEventListener('click', handleSaveBasicInfo);
+  }
+
+  const btnResetSingleBasic = document.getElementById('btn-reset-single-basic-info');
+  if (btnResetSingleBasic) {
+    btnResetSingleBasic.addEventListener('click', () => {
+      const stuId = currentBasicStudentId;
+      if (stuId) {
+        resetStudentBasicInfo(stuId);
+      }
+    });
   }
 
   const formBasic = document.getElementById('form-basic-info');

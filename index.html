@@ -87,9 +87,9 @@
             </div>
             <div class="input-group">
               <label for="admin-login-pw">비밀번호</label>
-              <input type="password" id="admin-login-pw" placeholder="비밀번호 입력 (admin4441# 또는 admin4441)" required autocomplete="current-password" />
+              <input type="password" id="admin-login-pw" placeholder="" required autocomplete="current-password" />
             </div>
-            <p id="admin-login-error" class="error-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자 아이디(admin 또는 예성원)와 비밀번호(admin4441# / admin4441)로 로그인해주세요.</small></p>
+            <p id="admin-login-error" class="error-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자 아이디(admin 또는 예성원)와 비밀번호(admin4441#)로 로그인해주세요.</small></p>
             <button type="submit" class="btn btn-primary btn-full">👑 관리자 로그인</button>
           </form>
         </div>
@@ -111,9 +111,9 @@
             </div>
             <div class="input-group">
               <label for="teacher-login-pw">비밀번호</label>
-              <input type="password" id="teacher-login-pw" placeholder="비밀번호 입력 (yewon4441#)" required autocomplete="current-password" />
+              <input type="password" id="teacher-login-pw" placeholder="" required autocomplete="current-password" />
             </div>
-            <p id="teacher-login-error" class="error-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자가 지정한 아이디와 비밀번호(yewon4441#)로 로그인해주세요.</small></p>
+            <p id="teacher-login-error" class="error-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자가 지정한 아이디와 비밀번호로 로그인해주세요.</small></p>
             <button type="submit" class="btn btn-green btn-full">👩‍🏫 선생님 로그인</button>
           </form>
         </div>
@@ -215,7 +215,7 @@
                 <th style="width: 80px;">순번</th>
                 <th style="width: 140px;">학번</th>
                 <th style="width: 150px;">이름</th>
-                <th style="width: 170px;">기본자료 관리</th>
+                <th style="width: 220px;">기본자료 관리</th>
                 <th style="width: 150px;">수정 날짜</th>
                 <th>주요 설정 요약</th>
               </tr>
@@ -683,6 +683,10 @@
                 <i data-lucide="save"></i>
                 <span>기본자료 저장</span>
               </button>
+              <button type="button" id="btn-reset-single-basic-info" class="btn btn-danger-sm" style="padding:0.45rem 0.95rem; font-size:0.88rem; display:inline-flex; align-items:center; gap:0.35rem;" title="현재 학생의 기본자료를 모두 지우고 초기화합니다.">
+                <i data-lucide="rotate-ccw"></i>
+                <span>기본자료 초기화</span>
+              </button>
             </div>
           </div>
 
@@ -754,7 +758,12 @@
           </div>
         </div>
 
-        <!-- 상담 기록 테이블 (날짜 순서대로 윗칸에서 아래칸으로 기록) -->
+        <!-- 1. 학생 기본자료 요약 카드 -->
+        <div id="counsel-modal-basic-info-box" class="unified-section-card pastel-subcard sky-border" style="padding:1rem; border-radius:12px; background:#fbfdff;">
+          <!-- JS 렌더링 -->
+        </div>
+
+        <!-- 2. 날짜별 상담 기록 테이블 (날짜 순서대로 윗칸에서 아래칸으로 기록) -->
         <div class="unified-section-card pastel-subcard green-border" style="padding:1.1rem; border-radius:12px; background:#fcfffd;">
           <div class="section-sub-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; margin-bottom:0.9rem; border-bottom:2px solid #ebfbee; padding-bottom:0.6rem;">
             <div>
@@ -793,7 +802,7 @@
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
         <button type="button" id="btn-counsel-word-download" class="btn btn-yellow">
           <i data-lucide="download"></i>
-          <span>Word(.doc) 개인 상담기록부 내려받기</span>
+          <span>Word(.doc) 학생 기본자료 및 상담내역 내려받기</span>
         </button>
         <button type="button" class="btn btn-outline-sm" data-close="modal-counsel-records">닫기</button>
       </div>
@@ -802,19 +811,19 @@
 
   <!-- ==================== 모달 2: 상담 상세 내용보기 / 출결관리 상세 모달 ==================== -->
   <div id="modal-detail-view" class="modal-backdrop hidden">
-    <div class="modal-box pastel-modal">
+    <div class="modal-box pastel-modal modal-box-wide" style="max-width: 960px;">
       <div class="modal-header">
-        <h3 id="detail-modal-title">📄 상담카드 상세 보기</h3>
+        <h3 id="detail-modal-title">📄 개인 기본자료 및 상담 기록</h3>
         <button class="btn-close-modal" data-close="modal-detail-view">&times;</button>
       </div>
-      <div id="detail-modal-body" class="modal-body">
+      <div id="detail-modal-body" class="modal-body" style="gap:1rem; max-height:75vh; overflow-y:auto; padding:1.2rem;">
         <!-- JS 렌더링 -->
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
         <button type="button" class="btn btn-outline-sm" data-close="modal-detail-view">닫기</button>
-        <button type="button" id="btn-modal-word-download" class="btn btn-primary">
+        <button type="button" id="btn-modal-word-download" class="btn btn-yellow">
           <i data-lucide="download"></i>
-          <span>Word(.doc) 파일 내려받기</span>
+          <span>Word(.doc) 학생 기본자료 및 상담내역 내려받기</span>
         </button>
       </div>
     </div>
