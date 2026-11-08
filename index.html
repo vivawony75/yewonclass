@@ -127,7 +127,7 @@
           <span class="section-tag tag-pink">SECTION 01</span>
           <h2 class="section-title">📅 주간 출석부</h2>
           <p class="section-desc">
-            미인정결석은 <strong>A</strong>, 그 외 결석은 <strong>B</strong>로 직접 입력하세요. 날짜 아래 <strong>휴업일</strong>을 체크하면 회색으로 비활성화되며 연속결석 계산 시 앞뒤로 자동 연결됩니다.
+            미인정결석은 <strong>A</strong>, 그 외 결석은 <strong>B</strong>로 입력하세요. 출결에 따라 <strong>급식관리(연속 3일)</strong>, <strong>미인정결석 관리(연속 5일·누적 35일)</strong>, <strong>허용 결석일수 관리(누적 50일)</strong>가 자동 계산되어 표기됩니다.
           </p>
         </div>
 
@@ -151,9 +151,11 @@
         <span class="legend-item"><kbd>A</kbd> 미인정결석 (단축키: 1, A, ㅁ)</span>
         <span class="legend-item"><kbd>B</kbd> 기타결석 (단축키: 2, B, ㅠ)</span>
         <span class="legend-item"><kbd>Space</kbd> 빈칸 ↔ A ↔ B 변경</span>
-        <span class="legend-item"><span class="status-dot warn-yellow"></span> A 연속 5일 이상 (노란색)</span>
-        <span class="legend-item"><span class="status-dot warn-green"></span> A 누적 35일 이상 (초록색)</span>
-        <span class="legend-item"><span class="status-dot warn-orange"></span> 모든결석(A+B) 50일 이상 (주황색)</span>
+        <span class="legend-item"><span class="status-dot dot-meal-stop"></span> 급식중단 (A+B 연속 3일)</span>
+        <span class="legend-item"><span class="status-dot dot-meal-resume"></span> 급식재개 (결석 없음)</span>
+        <span class="legend-item"><span class="status-dot dot-unauth-streak5"></span> 미인정 연속 5일</span>
+        <span class="legend-item"><span class="status-dot dot-unauth-total35"></span> 미인정 누적 35일</span>
+        <span class="legend-item"><span class="status-dot dot-allowed-50"></span> 모든 결석 누적 50일</span>
       </div>
 
       <div class="table-card">
@@ -161,19 +163,24 @@
         <div class="table-responsive scroll-10-rows">
           <table class="data-table attendance-table">
             <thead>
-              <tr id="attendance-thead-row">
-                <th class="col-num">번호(학번)</th>
-                <th class="col-name">이름</th>
+              <tr id="attendance-thead-row-1">
+                <th class="col-num" rowspan="2">학번</th>
+                <th class="col-name" rowspan="2">이름</th>
                 <!-- 월~금 5일간 날짜 및 휴업일 체크박스 동적 렌더링 -->
-                <th class="col-day" data-day-idx="0"></th>
-                <th class="col-day" data-day-idx="1"></th>
-                <th class="col-day" data-day-idx="2"></th>
-                <th class="col-day" data-day-idx="3"></th>
-                <th class="col-day" data-day-idx="4"></th>
-                <th class="col-stat">미인정 누적(A)</th>
-                <th class="col-stat">모든결석 누적(A+B)</th>
-                <th class="col-stat">연속 5일(A)</th>
-                <th class="col-stat">누적 35일(A)</th>
+                <th class="col-day" data-day-idx="0" rowspan="2"></th>
+                <th class="col-day" data-day-idx="1" rowspan="2"></th>
+                <th class="col-day" data-day-idx="2" rowspan="2"></th>
+                <th class="col-day" data-day-idx="3" rowspan="2"></th>
+                <th class="col-day" data-day-idx="4" rowspan="2"></th>
+                <th class="col-mgt-head col-meal-head" colspan="1">급식관리</th>
+                <th class="col-mgt-head col-unauth-head" colspan="2">미인정결석 관리</th>
+                <th class="col-mgt-head col-allowed-head" colspan="1">허용 결석일수 관리</th>
+              </tr>
+              <tr id="attendance-thead-row-2">
+                <th class="col-sub-head col-meal-sub">(A+B 연속 3일째)</th>
+                <th class="col-sub-head col-unauth-streak-sub">(A 연속 5일째)</th>
+                <th class="col-sub-head col-unauth-total-sub">(A 누적 35일째)</th>
+                <th class="col-sub-head col-allowed-sub">(A+B 누적 50일째)</th>
               </tr>
             </thead>
             <tbody id="attendance-tbody">

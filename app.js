@@ -399,77 +399,123 @@ function isNonSchoolDay(ymd) {
 }
 
 // ============================================================================
-// 4. 출결 통계 계산 엔진
-// - 미인정결석 누적(A)
-// - 모든 결석 누적(A+B)
-// - 연속5일: 미인정결석(A) 연속 5일 이상 (토·일, 공휴일, 휴업일 앞뒤 연결) -> 노란색
-// - 누적35일: 미인정결석(A) 누적 35일 이상 -> 초록색
+// 4. 출결 통계 및 관리 엔진 (수정.hwpx 양식 반영)
+// - 급식관리: A+B 연속 3일째 -> 노란바탕 빨간색 볼드체 "급식중단" / 결석 없으면 하얀바탕 파란색 볼드체 "급식재개"
+// - 미인정결석 관리 1: A 연속 5일째 -> 연두색 바탕 검은색 볼드체 "미인정결석 연속 5일 (0000.00.00.)"
+// - 미인정결석 관리 2: A 누적 35일째 -> 하늘색 바탕 검은색 볼드체 "미인정결석 누적 35일 (0000.00.00.)"
+// - 허용 결석일수 관리: A+B 누적 50일째 -> 주황색 바탕 검은색 볼드체 "모든 결석 누적 50일"
 // ============================================================================
 function calculateStudentAttendanceStats(studentId) {
   const stuRecords = state.attendance[studentId] || {};
   const recordedDates = Object.keys(stuRecords).sort();
 
-  let countA1 = 0;
-  let countA2 = 0;
+  let countA1 = 0; // 미인정결석(A)
+  let countA2 = 0; // 기타결석(B)
+  let total35Date = ''; // 누적 35일째 달성일
 
   for (const ymd of recordedDates) {
-    // 휴업일로 지정된 날짜는 결석 집계에서 제외
     if (state.holidays && state.holidays[ymd]) continue;
     const val = normalizeAttendanceValue(stuRecords[ymd]);
-    if (val === 'A') countA1++;
-    else if (val === 'B') countA2++;
+    if (val === 'A') {
+      countA1++;
+      if (countA1 === 35 && !total35Date) {
+        total35Date = ymd;
+      }
+    } else if (val === 'B') {
+      countA2++;
+    }
   }
 
-  // 연속 미인정결석(A) 최대 일수 계산 (주말·공휴일·휴업일은 건너뛰며 앞뒤 연결)
-  let maxConsecutiveA1 = 0;
-  const a1Dates = recordedDates.filter(ymd => {
+  // A+B 연속 결석 및 A 연속 결석 계산 (주말, 공휴일, 휴업일은 건너뛰며 앞뒤 연결)
+  let maxConsecutiveAll = 0; // A+B 최대 연속 결석
+  let maxConsecutiveA1 = 0;  // A 최대 연속 결석
+  let streak5Date = '';      // A 연속 5일째 달성일
+  let currentStreakAll = 0;  // 가장 최근 연속 결석 상태
+
+  const allAbsenceDates = recordedDates.filter(ymd => {
     if (state.holidays && state.holidays[ymd]) return false;
     const mark = normalizeAttendanceValue(stuRecords[ymd]);
-    return mark === 'A';
+    return mark === 'A' || mark === 'B';
   });
 
-  if (a1Dates.length > 0) {
-    const startParts = a1Dates[0].split('-').map(Number);
-    const endParts = a1Dates[a1Dates.length - 1].split('-').map(Number);
+  if (allAbsenceDates.length > 0) {
+    const startParts = allAbsenceDates[0].split('-').map(Number);
+    const endParts = allAbsenceDates[allAbsenceDates.length - 1].split('-').map(Number);
     const cur = new Date(startParts[0], startParts[1] - 1, startParts[2]);
     const end = new Date(endParts[0], endParts[1] - 1, endParts[2]);
 
-    let currentStreak = 0;
+    let streakAll = 0;
+    let streakA1 = 0;
+
     while (cur <= end) {
       const ymd = formatDateYMD(cur);
       if (isNonSchoolDay(ymd)) {
         // 토·일, 공휴일, 휴업일은 스트릭을 끊지 않고 앞뒤로 그대로 연결
       } else {
         const mark = normalizeAttendanceValue(stuRecords[ymd]);
-        if (mark === 'A') {
-          currentStreak++;
-          if (currentStreak > maxConsecutiveA1) {
-            maxConsecutiveA1 = currentStreak;
+        // A+B 연속 결석 계산
+        if (mark === 'A' || mark === 'B') {
+          streakAll++;
+          if (streakAll > maxConsecutiveAll) {
+            maxConsecutiveAll = streakAll;
           }
         } else {
-          currentStreak = 0;
+          streakAll = 0;
+        }
+
+        // A 미인정 연속 결석 계산
+        if (mark === 'A') {
+          streakA1++;
+          if (streakA1 === 5 && !streak5Date) {
+            streak5Date = ymd;
+          }
+          if (streakA1 > maxConsecutiveA1) {
+            maxConsecutiveA1 = streakA1;
+          }
+        } else {
+          streakA1 = 0;
         }
       }
       cur.setDate(cur.getDate() + 1);
     }
+    currentStreakAll = streakAll;
   }
 
   const totalAll = countA1 + countA2;
+
+  // 1) 급식관리:
+  // - A+B 연속 3일 이상: 노란바탕 빨간색 볼드체 "급식중단"
+  // - 결석 표기 없으면(총 결석 0일이거나 현재 결석 없는 상태): 하얀 바탕 파란색 볼드체 "급식재개"
+  const isMealStop = maxConsecutiveAll >= 3;
+  const isMealResume = totalAll === 0 || (!isMealStop && currentStreakAll === 0);
+
+  // 2) 미인정결석 관리 (연속 5일째):
   const isStreak5 = maxConsecutiveA1 >= 5;
+  const streak5DateFormatted = streak5Date ? streak5Date.replace(/-/g, '.') + '.' : '';
+
+  // 3) 미인정결석 관리 (누적 35일째):
   const isTotal35 = countA1 >= 35;
-  const isTotalAll50 = totalAll >= 50; // 모든 결석(A+B) 50일 이상 (주황색)
+  const total35DateFormatted = total35Date ? total35Date.replace(/-/g, '.') + '.' : '';
+
+  // 4) 허용 결석일수 관리 (누적 50일째):
+  const isTotalAll50 = totalAll >= 50;
 
   // 특이사항이 있는지 여부 ([출결관리] 필터용)
-  const hasAnyIssue = countA1 > 0 || totalAll > 0 || isStreak5 || isTotal35 || isTotalAll50;
+  const hasAnyIssue = isMealStop || isStreak5 || isTotal35 || isTotalAll50 || countA1 > 0 || totalAll > 0;
 
   return {
-    countA1,          // 미인정결석 누적(A)
+    countA1,
     countA2,
-    totalAll,         // 모든 결석 누적(A+B)
+    totalAll,
+    maxConsecutiveAll,
     maxConsecutiveA1,
-    isStreak5,        // 연속 5일 이상(노란색)
-    isTotal35,        // 누적 35일 이상(초록색)
-    isTotalAll50,     // 모든 결석 50일 이상(주황색)
+    isMealStop,
+    isMealResume,
+    isStreak5,
+    streak5DateStr: streak5DateFormatted,
+    isTotal35,
+    total35DateStr: total35DateFormatted,
+    isTotalAll50,
     hasAnyIssue
   };
 }
@@ -498,8 +544,8 @@ function renderAttendanceSection() {
     rangeEl.textContent = `${formatDateDisplay(currentMonday)} (월) ~ ${formatDateDisplay(fridayDate)} (금)`;
   }
 
-  // 월~금 5개 요일 헤더 + 휴업일 체크박스 + 공휴일/휴업 사유 또는 행사명 입력칸 업데이트
-  const dayThs = document.querySelectorAll('#attendance-thead-row th.col-day');
+  // 월~금 5개 요일 헤더 + 휴업일 체크박스 + 공휴일/휴업 사유 또는 행사명 입력칸 업데이트 (2단 헤더 1행)
+  const dayThs = document.querySelectorAll('#attendance-thead-row-1 th.col-day');
   weekDays.forEach((dayInfo, idx) => {
     const th = dayThs[idx];
     if (!th) return;
@@ -602,13 +648,17 @@ function renderAttendanceSection() {
         <td><strong>${escapeHtml(stu.studentNo)}</strong></td>
         <td><strong>${escapeHtml(stu.name)}</strong></td>
         ${dayCellsHtml}
-        <td class="col-6-a1"><strong>${stats.countA1}</strong>일</td>
-        <td class="col-7-all ${stats.isTotalAll50 ? 'cell-total-all50-active' : ''}"><strong>${stats.totalAll}</strong>일</td>
-        <td class="col-8-streak5 ${stats.isStreak5 ? 'cell-streak5-active' : ''}">
-          ${stats.isStreak5 ? `⚠️ 해당 (연속 ${stats.maxConsecutiveA1}일)` : `${stats.maxConsecutiveA1 > 0 ? `연속 ${stats.maxConsecutiveA1}일` : '-'}`}
+        <td class="col-cell-meal cell-mgt ${stats.isMealStop ? 'cell-meal-stop' : (stats.isMealResume ? 'cell-meal-resume' : '')}">
+          ${stats.isMealStop ? '급식중단' : (stats.isMealResume ? '급식재개' : '-')}
         </td>
-        <td class="col-9-total35 ${stats.isTotal35 ? 'cell-total35-active' : ''}">
-          ${stats.isTotal35 ? `✅ 해당 (${stats.countA1}일)` : '-'}
+        <td class="col-cell-unauth-streak cell-mgt ${stats.isStreak5 ? 'cell-unauth-streak5' : ''}">
+          ${stats.isStreak5 ? `미인정결석<br>연속 5일<br>(${stats.streak5DateStr || '-'})` : '-'}
+        </td>
+        <td class="col-cell-unauth-total cell-mgt ${stats.isTotal35 ? 'cell-unauth-total35' : ''}">
+          ${stats.isTotal35 ? `미인정결석<br>누적 35일<br>(${stats.total35DateStr || '-'})` : '-'}
+        </td>
+        <td class="col-cell-allowed cell-mgt ${stats.isTotalAll50 ? 'cell-allowed-50' : ''}">
+          ${stats.isTotalAll50 ? '모든 결석<br>누적 50일' : '-'}
         </td>
       </tr>
     `;
@@ -722,29 +772,58 @@ function renderAttendanceSection() {
   });
 }
 
-// 입력 중 포커스를 유지하기 위해 해당 행의 누적/통계만 즉시 업데이트
+// 입력 중 포커스를 유지하기 위해 해당 행의 누적/관리 열만 즉시 업데이트
 function updateSingleStudentRowStats(stuId) {
   const row = document.querySelector(`tr[data-row-stu="${stuId}"]`);
   if (!row) return;
   const stats = calculateStudentAttendanceStats(stuId);
 
-  const c6 = row.querySelector('.col-6-a1');
-  const c7 = row.querySelector('.col-7-all');
-  const c8 = row.querySelector('.col-8-streak5');
-  const c9 = row.querySelector('.col-9-total35');
+  const cMeal = row.querySelector('.col-cell-meal');
+  const cUnauthStreak = row.querySelector('.col-cell-unauth-streak');
+  const cUnauthTotal = row.querySelector('.col-cell-unauth-total');
+  const cAllowed = row.querySelector('.col-cell-allowed');
 
-  if (c6) c6.innerHTML = `<strong>${stats.countA1}</strong>일`;
-  if (c7) {
-    c7.className = `col-7-all ${stats.isTotalAll50 ? 'cell-total-all50-active' : ''}`;
-    c7.innerHTML = `<strong>${stats.totalAll}</strong>일`;
+  if (cMeal) {
+    if (stats.isMealStop) {
+      cMeal.className = 'col-cell-meal cell-mgt cell-meal-stop';
+      cMeal.innerHTML = '급식중단';
+    } else if (stats.isMealResume) {
+      cMeal.className = 'col-cell-meal cell-mgt cell-meal-resume';
+      cMeal.innerHTML = '급식재개';
+    } else {
+      cMeal.className = 'col-cell-meal cell-mgt';
+      cMeal.innerHTML = '-';
+    }
   }
-  if (c8) {
-    c8.className = `col-8-streak5 ${stats.isStreak5 ? 'cell-streak5-active' : ''}`;
-    c8.textContent = stats.isStreak5 ? `⚠️ 해당 (연속 ${stats.maxConsecutiveA1}일)` : (stats.maxConsecutiveA1 > 0 ? `연속 ${stats.maxConsecutiveA1}일` : '-');
+
+  if (cUnauthStreak) {
+    if (stats.isStreak5) {
+      cUnauthStreak.className = 'col-cell-unauth-streak cell-mgt cell-unauth-streak5';
+      cUnauthStreak.innerHTML = `미인정결석<br>연속 5일<br>(${stats.streak5DateStr || '-'})`;
+    } else {
+      cUnauthStreak.className = 'col-cell-unauth-streak cell-mgt';
+      cUnauthStreak.innerHTML = '-';
+    }
   }
-  if (c9) {
-    c9.className = `col-9-total35 ${stats.isTotal35 ? 'cell-total35-active' : ''}`;
-    c9.textContent = stats.isTotal35 ? `✅ 해당 (${stats.countA1}일)` : '-';
+
+  if (cUnauthTotal) {
+    if (stats.isTotal35) {
+      cUnauthTotal.className = 'col-cell-unauth-total cell-mgt cell-unauth-total35';
+      cUnauthTotal.innerHTML = `미인정결석<br>누적 35일<br>(${stats.total35DateStr || '-'})`;
+    } else {
+      cUnauthTotal.className = 'col-cell-unauth-total cell-mgt';
+      cUnauthTotal.innerHTML = '-';
+    }
+  }
+
+  if (cAllowed) {
+    if (stats.isTotalAll50) {
+      cAllowed.className = 'col-cell-allowed cell-mgt cell-allowed-50';
+      cAllowed.innerHTML = '모든 결석<br>누적 50일';
+    } else {
+      cAllowed.className = 'col-cell-allowed cell-mgt';
+      cAllowed.innerHTML = '-';
+    }
   }
 }
 
@@ -890,14 +969,22 @@ function renderCounselingSection() {
 
 function renderStatsBadgesHtml(stats) {
   const badges = [];
-  badges.push(`<span class="mini-badge a1">미인정(A): ${stats.countA1}일</span>`);
-  if (stats.isTotalAll50) {
-    badges.push(`<span class="mini-badge t50">모든결석(A+B): ${stats.totalAll}일 (주황)</span>`);
-  } else {
-    badges.push(`<span class="mini-badge a2">모든결석(A+B): ${stats.totalAll}일</span>`);
+  if (stats.isMealStop) {
+    badges.push(`<span class="mini-badge" style="background:#fff3bf; color:#d90429; font-weight:800;">급식중단(연속 3일)</span>`);
+  } else if (stats.isMealResume) {
+    badges.push(`<span class="mini-badge" style="background:#ffffff; color:#1971c2; border:1px solid #a5d8ff; font-weight:800;">급식재개</span>`);
   }
-  if (stats.isStreak5) badges.push(`<span class="mini-badge s5">연속5일(노랑)</span>`);
-  if (stats.isTotal35) badges.push(`<span class="mini-badge t35">누적35일(초록)</span>`);
+  badges.push(`<span class="mini-badge a1">미인정(A): ${stats.countA1}일</span>`);
+  badges.push(`<span class="mini-badge a2">모든결석(A+B): ${stats.totalAll}일</span>`);
+  if (stats.isStreak5) {
+    badges.push(`<span class="mini-badge s5" style="background:#d3f9d8; color:#111; font-weight:800;">미인정 연속 5일 (${stats.streak5DateStr || '-'})</span>`);
+  }
+  if (stats.isTotal35) {
+    badges.push(`<span class="mini-badge t35" style="background:#d0ebff; color:#111; font-weight:800;">미인정 누적 35일 (${stats.total35DateStr || '-'})</span>`);
+  }
+  if (stats.isTotalAll50) {
+    badges.push(`<span class="mini-badge t50" style="background:#ffd8a8; color:#111; font-weight:800;">모든 결석 누적 50일</span>`);
+  }
   return badges.join(' ');
 }
 
@@ -1955,13 +2042,14 @@ function loadStudentToUnifiedModal(studentId) {
   if (summaryBox) {
     summaryBox.innerHTML = `
       <div style="display:flex; flex-wrap:wrap; gap:0.45rem;">
-        <span class="mini-badge a1">미인정(A) 누적: ${stats.countA1}일</span>
-        <span class="mini-badge ${stats.isTotalAll50 ? 't50' : 'a2'}">모든결석(A+B) 누적: ${stats.totalAll}일 ${stats.isTotalAll50 ? '(50일 이상 - 주황)' : ''}</span>
+        ${stats.isMealStop ? '<span class="mini-badge" style="background:#fff3bf; color:#d90429; font-weight:800;">급식중단 (A+B 연속 3일)</span>' : (stats.isMealResume ? '<span class="mini-badge" style="background:#ffffff; color:#1971c2; border:1px solid #a5d8ff; font-weight:800;">급식재개</span>' : '')}
+        <span class="mini-badge a1">미인정(A): ${stats.countA1}일</span>
+        <span class="mini-badge ${stats.isTotalAll50 ? 't50' : 'a2'}">모든결석(A+B): ${stats.totalAll}일 ${stats.isTotalAll50 ? '(50일 이상)' : ''}</span>
         <span class="mini-badge ${stats.isStreak5 ? 's5' : ''}">
-          연속5일(A): ${stats.isStreak5 ? `해당 (최대 연속 ${stats.maxConsecutiveA1}일)` : `미해당 (최대 ${stats.maxConsecutiveA1}일)`}
+          미인정 연속 5일: ${stats.isStreak5 ? `해당 (${stats.streak5DateStr || '-'})` : '미해당'}
         </span>
         <span class="mini-badge ${stats.isTotal35 ? 't35' : ''}">
-          누적35일(A): ${stats.isTotal35 ? '해당' : '미해당'}
+          미인정 누적 35일: ${stats.isTotal35 ? `해당 (${stats.total35DateStr || '-'})` : '미해당'}
         </span>
       </div>
     `;
@@ -2469,10 +2557,10 @@ function buildStudentPersonalWordHtml(studentId) {
       <tr>
         <th>출결사항</th>
         <td>
-          미인정결석 누적(A): ${stats.countA1}일<br/>
-          모든결석 누적(A+B): ${stats.totalAll}일 (A: ${stats.countA1}일, B: ${stats.countA2}일) ${stats.isTotalAll50 ? '<span class="badge-orange">50일 이상 해당 (주황색)</span>' : ''}<br/>
-          연속 5일(A): ${stats.isStreak5 ? `<span class="badge-yellow">해당 (최대 연속 ${stats.maxConsecutiveA1}일)</span>` : '미해당'}<br/>
-          누적 35일(A): ${stats.isTotal35 ? '<span class="badge-green">해당</span>' : '미해당'}
+          급식관리: ${stats.isMealStop ? '<span style="color:#d90429; font-weight:bold; background:#fff3bf; padding:2px 6px;">급식중단 (A+B 연속 3일 이상)</span>' : (stats.isMealResume ? '<span style="color:#1971c2; font-weight:bold;">급식재개</span>' : '해당 없음')}<br/>
+          미인정결석 관리 (연속 5일): ${stats.isStreak5 ? `<span style="background:#d3f9d8; font-weight:bold; padding:2px 6px;">미인정결석 연속 5일 (${stats.streak5DateStr || '-'})</span>` : '미해당'}<br/>
+          미인정결석 관리 (누적 35일): ${stats.isTotal35 ? `<span style="background:#d0ebff; font-weight:bold; padding:2px 6px;">미인정결석 누적 35일 (${stats.total35DateStr || '-'})</span>` : `미해당 (현재 누적 ${stats.countA1}일)`}<br/>
+          허용 결석일수 관리 (누적 50일): ${stats.isTotalAll50 ? '<span style="background:#ffd8a8; font-weight:bold; padding:2px 6px;">모든 결석 누적 50일</span>' : `미해당 (현재 누적 ${stats.totalAll}일)`}
         </td>
       </tr>
       <tr><th>가정형태</th><td>${escapeHtml(formatFamilyText(basic))}</td></tr>

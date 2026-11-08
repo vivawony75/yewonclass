@@ -750,11 +750,97 @@ body {
   background: rgba(255, 246, 204, 0.25);
 }
 
-/* 출석부 열 스타일 */
-.col-num { width: 95px; }
-.col-name { width: 115px; }
-.col-day { min-width: 115px; }
-.col-stat { width: 110px; font-size: 0.82rem; }
+/* 출석부 열 스타일 및 2단 헤더 */
+.col-num { width: 85px; }
+.col-name { width: 105px; }
+.col-day { min-width: 105px; }
+.col-meal-head, .col-meal-sub, .col-cell-meal { min-width: 115px; }
+.col-unauth-head, .col-unauth-streak-sub, .col-unauth-total-sub, .col-cell-unauth { min-width: 155px; }
+.col-allowed-head, .col-allowed-sub, .col-cell-allowed { min-width: 130px; }
+
+.attendance-table thead tr#attendance-thead-row-1 th {
+  top: 0;
+  z-index: 6;
+}
+
+.attendance-table thead tr#attendance-thead-row-2 th {
+  top: 38px;
+  z-index: 5;
+  background: #fdf2f7;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.4rem;
+}
+
+.col-mgt-head {
+  font-size: 0.95rem;
+  font-weight: 800;
+  background: #fbf5fb !important;
+  color: #2d3142;
+  border-bottom: 1.5px solid #e0dcd5 !important;
+}
+
+.col-sub-head {
+  font-weight: 700;
+  color: #495057;
+}
+
+/* 관리 열 본문 셀 스타일 (급식관리, 미인정결석 관리, 허용 결석일수 관리) */
+td.cell-mgt {
+  padding: 0.45rem 0.5rem !important;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  vertical-align: middle;
+  text-align: center;
+}
+
+/* 1. 급식관리 셀: 급식중단 (노란바탕 + 빨간색 볼드체) */
+td.cell-meal-stop {
+  background-color: #fff3bf !important;
+  color: #d90429 !important;
+  font-weight: 900 !important;
+  font-size: 0.95rem !important;
+  letter-spacing: -0.2px;
+}
+
+/* 1. 급식관리 셀: 급식재개 (하얀바탕 + 파란색 볼드체) */
+td.cell-meal-resume {
+  background-color: #ffffff !important;
+  color: #1971c2 !important;
+  font-weight: 900 !important;
+  font-size: 0.95rem !important;
+  letter-spacing: -0.2px;
+}
+
+/* 2. 미인정결석 관리 (연속 5일째): 연두색 바탕 + 검은색 볼드체 */
+td.cell-unauth-streak5 {
+  background-color: #d3f9d8 !important;
+  color: #111111 !important;
+  font-weight: 800 !important;
+  font-size: 0.85rem !important;
+}
+
+/* 3. 미인정결석 관리 (누적 35일째): 하늘색 바탕 + 검은색 볼드체 */
+td.cell-unauth-total35 {
+  background-color: #d0ebff !important;
+  color: #111111 !important;
+  font-weight: 800 !important;
+  font-size: 0.85rem !important;
+}
+
+/* 4. 허용 결석일수 관리 (누적 50일째): 주황색 바탕 + 검은색 볼드체 */
+td.cell-allowed-50 {
+  background-color: #ffd8a8 !important;
+  color: #111111 !important;
+  font-weight: 800 !important;
+  font-size: 0.9rem !important;
+}
+
+/* 범례 도트 색상 */
+.status-dot.dot-meal-stop { background: #fff3bf; border: 1.5px solid #d90429; }
+.status-dot.dot-meal-resume { background: #ffffff; border: 1.5px solid #1971c2; }
+.status-dot.dot-unauth-streak5 { background: #d3f9d8; border: 1.5px solid #2b9348; }
+.status-dot.dot-unauth-total35 { background: #d0ebff; border: 1.5px solid #1e6091; }
+.status-dot.dot-allowed-50 { background: #ffd8a8; border: 1.5px solid #d9480f; }
 
 .day-header-date {
   font-weight: 800;
@@ -865,20 +951,19 @@ td.is-holiday-col {
   cursor: not-allowed;
 }
 
-/* 8열(노란색), 9열(초록색), 10열(빨간색) 하이라이트 셀 */
+/* 기존 하이라이트 클래스 호환 */
 td.cell-streak5-active {
-  background-color: var(--status-yellow-bg) !important;
-  color: var(--status-yellow-text) !important;
+  background-color: #d3f9d8 !important;
+  color: #111111 !important;
   font-weight: 800;
 }
 
 td.cell-total35-active {
-  background-color: var(--status-green-bg) !important;
-  color: var(--status-green-text) !important;
+  background-color: #d0ebff !important;
+  color: #111111 !important;
   font-weight: 800;
 }
 
-/* 모든 결석(A+B) 50일 이상일 때 주황색 하이라이트 */
 td.cell-total-all50-active,
 td.cell-total50-active {
   background-color: var(--status-orange-bg) !important;
