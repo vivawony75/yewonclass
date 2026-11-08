@@ -21,15 +21,19 @@
       <span id="sync-status" class="sync-badge local" title="클라우드 연동 상태">로컬 저장 모드</span>
     </div>
 
-    <!-- 상단 중앙 네비게이션 메뉴 (지원과 관리자 사이에 담임관리 배치) -->
+    <!-- 상단 중앙 네비게이션 메뉴 (출석부, 학생기본자료, 상담기록, 지원, 담임관리, 관리자) -->
     <nav id="main-nav" class="header-nav hidden">
       <button class="nav-btn active" data-target="section-attendance">
         <i data-lucide="calendar-check"></i>
         <span>출석부</span>
       </button>
+      <button class="nav-btn" data-target="section-basic-info">
+        <i data-lucide="clipboard-pen"></i>
+        <span>학생기본자료</span>
+      </button>
       <button class="nav-btn" data-target="section-counseling">
-        <i data-lucide="heart-handshake"></i>
-        <span>상담관리</span>
+        <i data-lucide="message-square-text"></i>
+        <span>상담기록</span>
       </button>
       <button class="nav-btn" data-target="section-support">
         <i data-lucide="life-buoy"></i>
@@ -76,16 +80,16 @@
           <div class="login-col-header">
             <span class="login-badge-pill admin">👑 관리자 로그인</span>
           </div>
-          <form id="admin-login-form" class="login-form">
+          <form id="admin-login-form" class="login-form" onsubmit="return false;">
             <div class="input-group">
               <label for="admin-login-id">관리자 아이디</label>
-              <input type="text" id="admin-login-id" placeholder="관리자 아이디 입력" required autocomplete="username" />
+              <input type="text" id="admin-login-id" placeholder="아이디 입력 (admin 또는 예성원)" required autocomplete="username" />
             </div>
             <div class="input-group">
               <label for="admin-login-pw">비밀번호</label>
-              <input type="password" id="admin-login-pw" placeholder="비밀번호 입력" required autocomplete="current-password" />
+              <input type="password" id="admin-login-pw" placeholder="비밀번호 입력 (admin4441# 또는 admin4441)" required autocomplete="current-password" />
             </div>
-            <p id="admin-login-error" class="error-msg hidden">관리자 아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>(비밀번호 분실 시 안티그래비티로 수정 요청)</small></p>
+            <p id="admin-login-error" class="error-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.<br/><small>관리자 아이디(admin 또는 예성원)와 비밀번호(admin4441# / admin4441)로 로그인해주세요.</small></p>
             <button type="submit" class="btn btn-primary btn-full">👑 관리자 로그인</button>
           </form>
         </div>
@@ -100,7 +104,7 @@
           <div class="login-col-header">
             <span class="login-badge-pill teacher">👩‍🏫 선생님(담임) 로그인</span>
           </div>
-          <form id="teacher-login-form" class="login-form">
+          <form id="teacher-login-form" class="login-form" onsubmit="return false;">
             <div class="input-group">
               <label for="teacher-login-id">선생님 아이디</label>
               <input type="text" id="teacher-login-id" placeholder="관리자가 지정한 아이디 입력" required autocomplete="username" />
@@ -151,8 +155,8 @@
         <span class="legend-item"><kbd>A</kbd> 미인정결석 (단축키: 1, A, ㅁ)</span>
         <span class="legend-item"><kbd>B</kbd> 기타결석 (단축키: 2, B, ㅠ)</span>
         <span class="legend-item"><kbd>Space</kbd> 빈칸 ↔ A ↔ B 변경</span>
-        <span class="legend-item"><span class="status-dot dot-meal-stop"></span> 급식중단 (A+B 연속 3일)</span>
-        <span class="legend-item"><span class="status-dot dot-meal-resume"></span> 급식재개 (결석 없음)</span>
+        <span class="legend-item"><span class="status-dot dot-meal-stop"></span> 급식중단 (3일째부터 재개 전까지)</span>
+        <span class="legend-item"><span class="status-dot dot-meal-resume"></span> 급식재개 (재개 주간에 중단·재개 동시 기록)</span>
         <span class="legend-item"><span class="status-dot dot-unauth-streak5"></span> 미인정 연속 5일</span>
         <span class="legend-item"><span class="status-dot dot-unauth-total35"></span> 미인정 누적 35일</span>
         <span class="legend-item"><span class="status-dot dot-allowed-50"></span> 모든 결석 누적 50일</span>
@@ -177,7 +181,7 @@
                 <th class="col-mgt-head col-allowed-head" colspan="1">허용 결석일수 관리</th>
               </tr>
               <tr id="attendance-thead-row-2">
-                <th class="col-sub-head col-meal-sub">(A+B 연속 3일째)</th>
+                <th class="col-sub-head col-meal-sub">(A+B 3일째~)</th>
                 <th class="col-sub-head col-unauth-streak-sub">(A 연속 5일째)</th>
                 <th class="col-sub-head col-unauth-total-sub">(A 누적 35일째)</th>
                 <th class="col-sub-head col-allowed-sub">(A+B 누적 50일째)</th>
@@ -191,14 +195,47 @@
       </div>
     </section>
 
-    <!-- ==================== 2. [상담관리] 섹션 ==================== -->
+    <!-- ==================== 2. [학생기본자료] 섹션 ==================== -->
+    <section id="section-basic-info" class="page-section pastel-sky-theme hidden">
+      <div class="section-header">
+        <div>
+          <span class="section-tag tag-sky">SECTION 02</span>
+          <h2 class="section-title">📋 학생 기본자료</h2>
+          <p class="section-desc">
+            학생별 가정형태, 경제적 형편, 진로희망, 생활태도 및 지도방안을 설정하고 관리합니다. <strong>[기본자료 설정]</strong> 버튼을 눌러 상세 내용을 확인하거나 수정하세요.
+          </p>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="scroll-10-rows">
+          <table class="data-table basic-info-student-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">순번</th>
+                <th style="width: 140px;">학번</th>
+                <th style="width: 150px;">이름</th>
+                <th style="width: 170px;">기본자료 관리</th>
+                <th style="width: 150px;">수정 날짜</th>
+                <th>주요 설정 요약</th>
+              </tr>
+            </thead>
+            <tbody id="basic-info-student-tbody">
+              <!-- JS 렌더링 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 3. [상담기록] 섹션 ==================== -->
     <section id="section-counseling" class="page-section pastel-green-theme hidden">
       <div class="section-header">
         <div>
-          <span class="section-tag tag-green">SECTION 02</span>
-          <h2 class="section-title">💬 학생 상담관리</h2>
+          <span class="section-tag tag-green">SECTION 03</span>
+          <h2 class="section-title">💬 학생 상담기록</h2>
           <p class="section-desc">
-            출석부 명단 순서대로 학번과 이름이 표시됩니다. <strong>[상담]</strong> 버튼을 눌러 학생의 기본자료 설정 및 날짜별 상담 내용을 입력·수정·관리하세요. (7줄 초과 시 스크롤바 자동 생성)
+            날짜 순서대로 윗칸에서 아래칸으로 학생별 상담 내용을 기록·관리합니다. <strong>미인정결석 누적 35일</strong> 달성 시 빨간색으로 날짜가 자동 기재되며 즉시 상담을 작성할 수 있습니다.
           </p>
         </div>
         <div class="section-actions">
@@ -215,11 +252,12 @@
           <table class="data-table counseling-student-table">
             <thead>
               <tr>
-                <th style="width: 90px;">순번</th>
-                <th style="width: 160px;">학번</th>
-                <th style="width: 180px;">이름</th>
-                <th style="width: 180px;">상담</th>
-                <th style="width: 150px;">상담 누적 수</th>
+                <th style="width: 80px;">순번</th>
+                <th style="width: 140px;">학번</th>
+                <th style="width: 150px;">이름</th>
+                <th style="width: 180px;">상담기록 작성/조회</th>
+                <th style="width: 140px;">상담 누적 수</th>
+                <th>최근 상담 / 출결 특이사항</th>
               </tr>
             </thead>
             <tbody id="counseling-student-tbody">
@@ -230,11 +268,11 @@
       </div>
     </section>
 
-    <!-- ==================== 3. [지원] 섹션 ==================== -->
+    <!-- ==================== 4. [지원] 섹션 ==================== -->
     <section id="section-support" class="page-section pastel-orange-theme hidden">
       <div class="section-header">
         <div>
-          <span class="section-tag tag-orange">SECTION 03</span>
+          <span class="section-tag tag-orange">SECTION 04</span>
           <h2 class="section-title">🤝 복지 및 청소년 지원 기관</h2>
           <p class="section-desc">
             학생 복지 지원 및 유관 기관(청소년상담복지센터, Wee센터, 복지관 등)의 누리집 목록입니다. 기관명 또는 사이트 주소를 누르시면 해당 홈페이지로 바로 연결됩니다.
@@ -248,11 +286,11 @@
       </div>
     </section>
 
-    <!-- ==================== 4. [담임관리] 섹션 (지원과 관리자 사이) ==================== -->
+    <!-- ==================== 5. [담임관리] 섹션 (지원과 관리자 사이) ==================== -->
     <section id="section-homeroom" class="page-section pastel-yellow-theme hidden">
       <div class="section-header">
         <div>
-          <span class="section-tag tag-yellow">SECTION 04</span>
+          <span class="section-tag tag-yellow">SECTION 05</span>
           <h2 class="section-title">📋 담임관리</h2>
           <p class="section-desc">
             담임교사를 위한 학급 전용 관리 메뉴입니다. 출석부 명단(학번·이름) 설정, 학급 상담내역 조회 및 Word 다운로드, 출결 특이사항 해당자 집중 관리를 수행합니다.
@@ -370,11 +408,11 @@
       </div>
     </section>
 
-    <!-- ==================== 5. [관리자] 섹션 ==================== -->
+    <!-- ==================== 6. [관리자] 섹션 ==================== -->
     <section id="section-admin" class="page-section pastel-sky-theme hidden">
       <div class="section-header">
         <div>
-          <span class="section-tag tag-sky">SECTION 05</span>
+          <span class="section-tag tag-sky">SECTION 06</span>
           <h2 class="section-title">🛠️ 관리자 메뉴</h2>
           <p class="section-desc">
             선생님(교사) 계정 관리, 출석부 학생 명단(학번·이름) 관리, 전체 상담내역 조회 및 Word 다운로드, 출결 특이사항 해당자 집중 관리, 그리고 Firebase 연동을 설정합니다.
@@ -457,7 +495,40 @@
           </div>
         </div>
 
-        <!-- 관리자 2) [상담관리] & [출결관리] -->
+        <!-- 관리자 2) [학생기본자료] 항목(중항목·소항목) 설정 관리 -->
+        <div class="admin-panel pastel-subcard purple-border">
+          <div class="panel-header">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <span style="font-size:1.25rem;">📋</span>
+                <h3 style="margin:0;">관리자 [학생기본자료] 항목(중항목·소항목) 설정</h3>
+              </div>
+              <p class="panel-sub" style="margin-top:0.25rem;">
+                학생기본자료에 들어갈 중항목과 소항목들을 추가, 수정, 삭제할 수 있습니다. <strong>[항목 설정 저장]</strong>을 누르면 기본자료 설정 화면과 상담카드 및 Word 파일에 즉시 반영됩니다.
+              </p>
+            </div>
+            <div class="panel-btn-group">
+              <button type="button" id="btn-add-basic-category" class="btn btn-primary" style="background:#7048e8; border-color:#5f3dc4;">
+                <i data-lucide="plus-circle"></i>
+                <span>+ 중항목 추가</span>
+              </button>
+              <button type="button" id="btn-reset-basic-schema" class="btn btn-outline-sm" title="기존 기본 항목(가정형태, 경제적 형편, 진로희망, 생활태도)으로 초기화합니다.">
+                <i data-lucide="rotate-ccw"></i>
+                <span>기본 항목으로 초기화</span>
+              </button>
+              <button type="button" id="btn-save-basic-schema" class="btn btn-green">
+                <i data-lucide="save"></i>
+                <span>항목 설정 저장</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="admin-basic-schema-container" style="display:flex; flex-direction:column; gap:0.9rem;">
+            <!-- JS 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 관리자 3) [상담관리] & [출결관리] -->
         <div class="admin-panel pastel-subcard sky-border">
           <div class="panel-header">
             <div>
@@ -564,15 +635,15 @@
 
   </div>
 
-  <!-- ==================== 통합 모달: 학생 [상담] (기본자료 + 상담기록 관리) ==================== -->
-  <div id="modal-counsel-unified" class="modal-backdrop hidden">
+  <!-- ==================== 모달 1: 학생 기본자료 관리 ==================== -->
+  <div id="modal-student-basic-info" class="modal-backdrop hidden">
     <div class="modal-box pastel-modal modal-box-wide">
       <div class="modal-header">
         <div style="display:flex; align-items:center; gap:0.5rem;">
-          <span style="font-size:1.3rem;">💬</span>
-          <h3 id="counsel-unified-modal-title">내 금쪽이 상담 및 기본자료 관리</h3>
+          <span style="font-size:1.3rem;">📋</span>
+          <h3 id="basic-info-modal-title">학생 기본자료 관리</h3>
         </div>
-        <button class="btn-close-modal" data-close="modal-counsel-unified">&times;</button>
+        <button class="btn-close-modal" data-close="modal-student-basic-info">&times;</button>
       </div>
 
       <div class="modal-body" style="gap:1.2rem;">
@@ -581,32 +652,32 @@
           <div class="counsel-info-banner" style="flex:1; min-width:240px; margin:0;">
             <div class="info-pair">
               <span class="info-label">학번:</span>
-              <strong id="unified-display-num">-</strong>
+              <strong id="basic-display-num">-</strong>
             </div>
             <div class="info-pair">
               <span class="info-label">이름:</span>
-              <strong id="unified-display-name">-</strong>
+              <strong id="basic-display-name">-</strong>
             </div>
           </div>
-          <div id="unified-student-switch-box" style="display:flex; align-items:center; gap:0.5rem;">
-            <label for="unified-student-select" style="font-size:0.85rem; font-weight:700; white-space:nowrap; color:#495057;">학생 변경:</label>
-            <select id="unified-student-select" style="padding:0.4rem 0.75rem; border-radius:8px; border:1.5px solid #dcd7d0; font-size:0.9rem; font-weight:600; background:#fff;"></select>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <label for="basic-student-select" style="font-size:0.85rem; font-weight:700; white-space:nowrap; color:#495057;">학생 변경:</label>
+            <select id="basic-student-select" style="padding:0.4rem 0.75rem; border-radius:8px; border:1.5px solid #dcd7d0; font-size:0.9rem; font-weight:600; background:#fff;"></select>
           </div>
         </div>
 
-        <!-- ================= 1. 상단: 학생 기본자료 ================= -->
+        <!-- 학생 기본자료 폼 카드 -->
         <div class="unified-section-card pastel-subcard sky-border" style="padding:1.1rem; border-radius:12px; background:#fbfdff;">
           <div class="section-sub-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; margin-bottom:0.9rem; border-bottom:2px solid #e7f5ff; padding-bottom:0.6rem;">
             <div style="display:flex; align-items:center; gap:0.4rem;">
               <span style="font-size:1.15rem;">📋</span>
-              <h4 style="margin:0; font-size:1.05rem; color:#1971c2; font-weight:800;">1. 학생 기본자료</h4>
+              <h4 style="margin:0; font-size:1.05rem; color:#1971c2; font-weight:800;">학생 기본자료 설정</h4>
             </div>
 
-            <!-- 날짜는 컴퓨터 시스템 따르지 말고, 기본자료 수정하는 날짜와 저장 버튼 따로 설정 -->
             <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.6rem;">
               <div style="display:flex; align-items:center; gap:0.4rem; background:#fff; padding:0.3rem 0.65rem; border:1.5px solid #64b5f6; border-radius:8px;">
                 <label for="basic-info-date" style="font-size:0.83rem; font-weight:700; color:#1971c2; white-space:nowrap;">📅 기본자료 수정 날짜:</label>
-                <input type="date" id="basic-info-date" style="border:none; outline:none; font-weight:700; font-size:0.9rem; color:#1971c2; background:transparent;" title="기본자료를 수정한 날짜를 선택/입력하세요 (시스템 날짜 자동 덮어쓰기 없음)" />
+                <input type="date" id="basic-info-date" style="border:none; outline:none; font-weight:700; font-size:0.9rem; color:#1971c2; background:transparent;" title="기본자료를 수정한 날짜를 선택/입력하세요 (시스템 날짜 기본 세팅)" />
+                <span id="basic-info-prev-date" style="font-size:0.78rem; font-weight:600; color:#868e96; white-space:nowrap;"></span>
               </div>
               <button type="button" id="btn-save-basic-info" class="btn btn-primary" style="padding:0.45rem 0.95rem; font-size:0.88rem;">
                 <i data-lucide="save"></i>
@@ -621,86 +692,17 @@
             <!-- 출결사항 (출석부 자동 반영) -->
             <div class="form-section-box" style="margin-bottom:0.8rem;">
               <label class="box-title">📊 출결사항 (출석부 자동 반영)</label>
-              <div id="unified-attendance-summary" class="attendance-auto-badges">
+              <div id="basic-info-attendance-summary" class="attendance-auto-badges">
                 <!-- JS 자동 반영 -->
               </div>
             </div>
 
-            <!-- 가정형태 (복수 선택 + 기타 직접입력) -->
-            <div class="form-section-box" style="margin-bottom:0.8rem;">
-              <label class="box-title">🏠 가정형태 <small>(복수 선택 가능)</small></label>
-              <div class="checkbox-group">
-                <label class="check-pill"><input type="checkbox" name="familyType" value="양부모" /><span>양부모</span></label>
-                <label class="check-pill"><input type="checkbox" name="familyType" value="한부모(아버지)" /><span>한부모(아버지)</span></label>
-                <label class="check-pill"><input type="checkbox" name="familyType" value="한부모(어머니)" /><span>한부모(어머니)</span></label>
-                <label class="check-pill"><input type="checkbox" name="familyType" value="조부모" /><span>조부모</span></label>
-                <label class="check-pill"><input type="checkbox" name="familyType" value="다문화" /><span>다문화</span></label>
-                <label class="check-pill"><input type="checkbox" name="familyType" value="기타" id="chk-family-etc" /><span>기타(직접입력)</span></label>
-              </div>
-              <input type="text" id="family-etc-input" class="etc-input hidden" placeholder="기타 가정형태를 직접 입력하세요..." />
+            <!-- 동적으로 생성/관리되는 학생기본자료 중항목/소항목 필드 -->
+            <div id="dynamic-basic-info-fields">
+              <!-- JS 동적 렌더링 -->
             </div>
 
-            <!-- 경제적 형편 (체크) -->
-            <div class="form-section-box" style="margin-bottom:0.8rem;">
-              <label class="box-title">💰 경제적 형편 <small>(체크)</small></label>
-              <div class="checkbox-group">
-                <label class="check-pill"><input type="radio" name="economicStatus" value="상" /><span>상</span></label>
-                <label class="check-pill"><input type="radio" name="economicStatus" value="중상" /><span>중상</span></label>
-                <label class="check-pill"><input type="radio" name="economicStatus" value="중" checked /><span>중</span></label>
-                <label class="check-pill"><input type="radio" name="economicStatus" value="중하" /><span>중하</span></label>
-                <label class="check-pill"><input type="radio" name="economicStatus" value="하" /><span>하</span></label>
-              </div>
-            </div>
-
-            <!-- 진로희망 (체크 + 기타 직접 기록) -->
-            <div class="form-section-box" style="margin-bottom:0.8rem;">
-              <label class="box-title">🎯 진로희망 <small>(체크)</small></label>
-              <div class="checkbox-group">
-                <label class="check-pill"><input type="checkbox" name="careerHope" value="대학진학" /><span>대학진학</span></label>
-                <label class="check-pill"><input type="checkbox" name="careerHope" value="취업" /><span>취업</span></label>
-                <label class="check-pill"><input type="checkbox" name="careerHope" value="진로탐색" /><span>진로탐색</span></label>
-                <label class="check-pill"><input type="checkbox" name="careerHope" value="기타" id="chk-career-etc" /><span>기타(직접 기록)</span></label>
-              </div>
-              <input type="text" id="career-etc-input" class="etc-input hidden" placeholder="기타 진로희망을 직접 기록하세요..." />
-            </div>
-
-            <!-- 생활태도 (긍정 / 관심지도 2줄 구성) -->
-            <div class="form-section-box" style="margin-bottom:0.8rem;">
-              <label class="box-title">🌱 생활태도 <small>(체크)</small></label>
-              
-              <!-- 윗줄: 긍정태도 -->
-              <div style="margin-bottom:0.6rem;">
-                <div style="font-size:0.8rem; font-weight:700; color:#2b8a3e; margin-bottom:0.3rem;">[긍정·모범 태도]</div>
-                <div class="checkbox-group">
-                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="선행" /><span>선행</span></label>
-                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="리더십" /><span>리더십</span></label>
-                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="봉사" /><span>봉사</span></label>
-                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="배려" /><span>배려</span></label>
-                  <label class="check-pill"><input type="checkbox" name="attitudePositive" value="기타" id="chk-attitude-pos-etc" /><span>기타(직접입력)</span></label>
-                </div>
-                <input type="text" id="attitude-pos-etc-input" class="etc-input hidden" placeholder="기타 긍정 태도를 직접 입력하세요..." />
-              </div>
-
-              <!-- 아랫줄: 관심·지도 태도 -->
-              <div>
-                <div style="font-size:0.8rem; font-weight:700; color:#c92a2a; margin-bottom:0.3rem;">[관심·지도 태도]</div>
-                <div class="checkbox-group">
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="흡연" /><span>흡연</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="음주" /><span>음주</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="나태함" /><span>나태함</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="학교폭력" /><span>학교폭력</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="교권침해" /><span>교권침해</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="지도불응" /><span>지도불응</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="자해" /><span>자해</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="자살생각" /><span>자살생각</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="가출" /><span>가출</span></label>
-                  <label class="check-pill"><input type="checkbox" name="problemBehavior" value="기타" id="chk-attitude-neg-etc" /><span>기타(직접입력)</span></label>
-                </div>
-                <input type="text" id="attitude-neg-etc-input" class="etc-input hidden" placeholder="기타 관심/지도 태도를 직접 입력하세요..." />
-              </div>
-            </div>
-
-            <!-- 지도방안 (파스텔톤 주황색 배경, 자동 표기 및 수정 가능) -->
+            <!-- 지도방안 -->
             <div class="form-section-box guidance-box">
               <label class="box-title" style="color:#d9480f;">💡 [지도방안] <small>(체크 조건에 따라 자동 제안 표기)</small></label>
               <div id="guidance-auto-tags" style="margin-bottom:0.4rem; min-height:24px;">
@@ -710,36 +712,77 @@
             </div>
           </form>
         </div>
+      </div>
 
-        <!-- ================= 2. 하단: 상담 기록 (행 추가, 날짜/내용 입력, 수정, 삭제) ================= -->
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" id="btn-basic-word-download" class="btn btn-yellow">
+          <i data-lucide="download"></i>
+          <span>Word(.doc) 학생 기본자료 내려받기</span>
+        </button>
+        <button type="button" class="btn btn-outline-sm" data-close="modal-student-basic-info">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 모달 2: 학생 상담기록 관리 ==================== -->
+  <div id="modal-counsel-records" class="modal-backdrop hidden">
+    <div class="modal-box pastel-modal modal-box-wide">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.3rem;">💬</span>
+          <h3 id="counsel-records-modal-title">학생 상담기록 관리</h3>
+        </div>
+        <button class="btn-close-modal" data-close="modal-counsel-records">&times;</button>
+      </div>
+
+      <div class="modal-body" style="gap:1.2rem;">
+        <!-- 상단: 학생 정보 배너 및 학생 전환 드롭다운 -->
+        <div class="counsel-unified-top-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem;">
+          <div class="counsel-info-banner" style="flex:1; min-width:240px; margin:0;">
+            <div class="info-pair">
+              <span class="info-label">학번:</span>
+              <strong id="counsel-display-num">-</strong>
+            </div>
+            <div class="info-pair">
+              <span class="info-label">이름:</span>
+              <strong id="counsel-display-name">-</strong>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <label for="counsel-student-select" style="font-size:0.85rem; font-weight:700; white-space:nowrap; color:#495057;">학생 변경:</label>
+            <select id="counsel-student-select" style="padding:0.4rem 0.75rem; border-radius:8px; border:1.5px solid #dcd7d0; font-size:0.9rem; font-weight:600; background:#fff;"></select>
+          </div>
+        </div>
+
+        <!-- 상담 기록 테이블 (날짜 순서대로 윗칸에서 아래칸으로 기록) -->
         <div class="unified-section-card pastel-subcard green-border" style="padding:1.1rem; border-radius:12px; background:#fcfffd;">
           <div class="section-sub-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; margin-bottom:0.9rem; border-bottom:2px solid #ebfbee; padding-bottom:0.6rem;">
             <div>
               <div style="display:flex; align-items:center; gap:0.4rem;">
                 <span style="font-size:1.15rem;">💬</span>
-                <h4 style="margin:0; font-size:1.05rem; color:#2b8a3e; font-weight:800;">2. 날짜별 상담 기록</h4>
-                <span id="unified-counsel-count-badge" class="counsel-count-pill" style="font-size:0.8rem; padding:0.15rem 0.55rem;">0회</span>
+                <h4 style="margin:0; font-size:1.05rem; color:#2b8a3e; font-weight:800;">날짜별 상담 기록 (날짜 순서대로 윗칸 → 아래칸)</h4>
+                <span id="counsel-count-badge" class="counsel-count-pill" style="font-size:0.8rem; padding:0.15rem 0.55rem;">0회</span>
               </div>
               <p style="font-size:0.82rem; color:#555; margin:0.25rem 0 0 0;">
-                아래 <strong>[+ 행 추가]</strong>를 눌러 날짜와 상담 내용을 직접 입력하고 저장·수정·삭제할 수 있습니다.
+                상담기록은 날짜 순서대로 위에서 아래로 기록됩니다. <strong style="color:#d90429;">미인정결석 누적 35일</strong> 도달 시 빨간색 날짜로 자동 등록되며 즉시 상담을 작성할 수 있습니다.
               </p>
             </div>
             <button type="button" id="btn-add-counsel-entry-row" class="btn btn-green">
               <i data-lucide="plus-circle"></i>
-              <span>+ 행 추가</span>
+              <span>+ 새 상담 행 추가</span>
             </button>
           </div>
 
-          <div class="scroll-10-rows" style="max-height: 320px; overflow-y:auto; border:1px solid #dcd7d0; border-radius:8px; background:#fff;">
+          <div class="scroll-10-rows" style="max-height: 420px; overflow-y:auto; border:1px solid #dcd7d0; border-radius:8px; background:#fff;">
             <table class="data-table unified-counsel-table" style="width:100%; border-collapse:collapse;">
               <thead>
                 <tr style="background:#f2fbf5;">
-                  <th style="width: 140px; text-align:center;">상담 날짜</th>
+                  <th style="width: 170px; text-align:center;">상담 날짜</th>
                   <th style="text-align:left;">상담 내용</th>
                   <th style="width: 160px; text-align:center;">관리</th>
                 </tr>
               </thead>
-              <tbody id="unified-counsel-tbody">
+              <tbody id="counsel-records-tbody">
                 <!-- JS 렌더링 -->
               </tbody>
             </table>
@@ -748,11 +791,11 @@
       </div>
 
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
-        <button type="button" id="btn-unified-word-download" class="btn btn-yellow">
+        <button type="button" id="btn-counsel-word-download" class="btn btn-yellow">
           <i data-lucide="download"></i>
           <span>Word(.doc) 개인 상담기록부 내려받기</span>
         </button>
-        <button type="button" class="btn btn-outline-sm" data-close="modal-counsel-unified">닫기</button>
+        <button type="button" class="btn btn-outline-sm" data-close="modal-counsel-records">닫기</button>
       </div>
     </div>
   </div>

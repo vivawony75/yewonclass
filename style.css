@@ -164,6 +164,11 @@ body {
   color: var(--pastel-pink-dark);
 }
 
+.nav-btn.active[data-target="section-basic-info"] {
+  background: var(--pastel-sky);
+  color: var(--pastel-sky-dark);
+}
+
 .nav-btn.active[data-target="section-counseling"] {
   background: var(--pastel-green);
   color: var(--pastel-green-dark);
@@ -729,6 +734,10 @@ body {
   border-right: 1px solid #f1ece6;
 }
 
+.basic-info-student-table thead th {
+  background: #f0f7ff;
+}
+
 .counseling-student-table thead th {
   background: #f2fbf5;
 }
@@ -751,63 +760,132 @@ body {
 }
 
 /* 출석부 열 스타일 및 2단 헤더 */
-.col-num { width: 85px; }
-.col-name { width: 105px; }
-.col-day { min-width: 105px; }
-.col-meal-head, .col-meal-sub, .col-cell-meal { min-width: 115px; }
-.col-unauth-head, .col-unauth-streak-sub, .col-unauth-total-sub, .col-cell-unauth { min-width: 155px; }
-.col-allowed-head, .col-allowed-sub, .col-cell-allowed { min-width: 130px; }
+.col-num { width: 85px; min-width: 80px; }
+.col-name { width: 145px; min-width: 140px; white-space: nowrap; }
+.col-day { min-width: 108px; padding: 0.45rem 0.3rem !important; }
+
+/* 오른쪽 4열: 문자행이 나뉘지 않는 한도 내에서 슬림하게 가로 폭 축소 */
+.col-meal-head, .col-meal-sub, .col-cell-meal {
+  width: 130px;
+  min-width: 130px;
+  white-space: nowrap;
+}
+.col-unauth-streak-sub, .col-cell-unauth-streak {
+  width: 116px;
+  min-width: 116px;
+  white-space: nowrap;
+}
+.col-unauth-total-sub, .col-cell-unauth-total {
+  width: 116px;
+  min-width: 116px;
+  white-space: nowrap;
+}
+.col-allowed-head, .col-allowed-sub, .col-cell-allowed {
+  width: 106px;
+  min-width: 106px;
+  white-space: nowrap;
+}
+
+/* 이름 셀은 절대로 세로로 줄바꿈되지 않고 가로로 시원하게 표기 */
+.attendance-table tbody td:nth-child(2) {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+}
 
 .attendance-table thead tr#attendance-thead-row-1 th {
   top: 0;
   z-index: 6;
+  white-space: nowrap;
 }
 
 .attendance-table thead tr#attendance-thead-row-2 th {
   top: 38px;
   z-index: 5;
   background: #fdf2f7;
-  font-size: 0.82rem;
-  padding: 0.45rem 0.4rem;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.3rem;
+  white-space: nowrap;
 }
 
 .col-mgt-head {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 800;
   background: #fbf5fb !important;
   color: #2d3142;
   border-bottom: 1.5px solid #e0dcd5 !important;
+  white-space: nowrap;
 }
 
 .col-sub-head {
   font-weight: 700;
   color: #495057;
+  white-space: nowrap;
 }
 
 /* 관리 열 본문 셀 스타일 (급식관리, 미인정결석 관리, 허용 결석일수 관리) */
 td.cell-mgt {
-  padding: 0.45rem 0.5rem !important;
-  font-size: 0.85rem;
+  padding: 0.35rem 0.3rem !important;
+  font-size: 0.82rem;
   line-height: 1.35;
   vertical-align: middle;
   text-align: center;
+  word-break: keep-all !important;
+  white-space: nowrap !important;
 }
 
-/* 1. 급식관리 셀: 급식중단 (노란바탕 + 빨간색 볼드체) */
+/* 1. 급식관리 셀: 급식중단 단독 (재개 전까지 노란바탕 + 빨간색 볼드체) */
 td.cell-meal-stop {
   background-color: #fff3bf !important;
   color: #d90429 !important;
-  font-weight: 900 !important;
-  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  font-size: 0.8rem !important;
+  line-height: 1.3 !important;
   letter-spacing: -0.2px;
 }
 
-/* 1. 급식관리 셀: 급식재개 (하얀바탕 + 파란색 볼드체) */
+/* 1. 급식관리 셀: 급식재개 주간 (중단 + 재개 둘 다 기록) */
+td.cell-meal-both {
+  background-color: #f8f9fa !important;
+  font-size: 0.78rem !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.3px;
+  padding: 4px 2px !important;
+}
+
+td.cell-meal-both .meal-line-stop {
+  color: #d90429 !important;
+  font-weight: 800 !important;
+  display: block;
+}
+
+td.cell-meal-both .meal-line-resume {
+  color: #1971c2 !important;
+  font-weight: 800 !important;
+  display: block;
+  margin-top: 1px;
+}
+
+td.cell-meal-both .meal-line-stop + .meal-line-stop,
+td.cell-meal-both .meal-line-resume + .meal-line-stop {
+  margin-top: 1px;
+}
+
+/* 한 주에 재개 후 또 중단 등으로 3줄 이상 기록될 때 슬림하게 축소 */
+td.cell-meal-both.meal-multi {
+  font-size: 0.72rem !important;
+  line-height: 1.25 !important;
+  padding: 3px 2px !important;
+}
+
+/* 1. 급식관리 셀: 급식재개 단독 (하얀바탕 + 파란색 볼드체) */
 td.cell-meal-resume {
   background-color: #ffffff !important;
   color: #1971c2 !important;
-  font-weight: 900 !important;
-  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  font-size: 0.8rem !important;
+  line-height: 1.3 !important;
   letter-spacing: -0.2px;
 }
 
@@ -842,24 +920,42 @@ td.cell-allowed-50 {
 .status-dot.dot-unauth-total35 { background: #d0ebff; border: 1.5px solid #1e6091; }
 .status-dot.dot-allowed-50 { background: #ffd8a8; border: 1.5px solid #d9480f; }
 
+.day-header-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 100%;
+}
+
 .day-header-date {
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   display: block;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0;
+  line-height: 1.2;
 }
 
 .holiday-check-label {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.25rem;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.85);
-  padding: 0.15rem 0.45rem;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.12rem 0.45rem;
   border-radius: 6px;
   border: 1px solid #ddd;
   cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.holiday-check-label input[type="checkbox"] {
+  cursor: pointer;
+  margin: 0;
 }
 
 /* 휴업일 체크된 열: 회색 처리 및 입력 차단 */
@@ -911,19 +1007,24 @@ td.is-holiday-col {
 }
 
 .holiday-reason-input {
-  width: 90%;
-  margin-top: 0.3rem;
-  padding: 0.15rem 0.35rem;
+  width: 95%;
+  max-width: 110px;
+  box-sizing: border-box;
+  margin-top: 0;
+  padding: 0.2rem 0.35rem;
   font-size: 0.75rem;
   border: 1px solid #dcd7d0;
-  border-radius: 4px;
+  border-radius: 5px;
   text-align: center;
   background: rgba(255, 255, 255, 0.95);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .holiday-reason-input:focus {
   outline: none;
   border-color: var(--pastel-sky-strong);
+  box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.25);
+  background: #ffffff;
 }
 
 .att-input:focus {
@@ -1534,3 +1635,99 @@ td.cell-total50-active {
     grid-template-columns: 1fr;
   }
 }
+
+/* =============================================================
+ * 13. [학생기본자료] 및 [상담기록] 분리 & 출결 마일스톤 스타일
+ * ============================================================= */
+.milestone-date-red {
+  color: #d90429 !important;
+  font-weight: 800 !important;
+  font-size: 0.95rem;
+}
+
+.milestone-badge-tag {
+  display: inline-block;
+  background: #ffe3e3;
+  color: #c92a2a;
+  border: 1px solid #ffa8a8;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+  vertical-align: middle;
+}
+
+.row-milestone-red {
+  background: #fff8f8 !important;
+}
+
+.row-milestone-red:hover {
+  background: #ffeef0 !important;
+}
+
+/* =============================================================
+ * 14. [학생기본자료] 관리자 항목(중항목, 소항목) 설정 전용 스타일
+ * ============================================================= */
+.purple-border {
+  border-color: #b197fc !important;
+}
+
+.admin-category-card {
+  background: #fdfcff;
+  border: 1.5px solid #dcd7d0;
+  border-radius: 12px;
+  padding: 1.1rem;
+  transition: all 0.2s ease;
+}
+
+.admin-category-card:hover {
+  border-color: #b197fc;
+  box-shadow: 0 3px 10px rgba(112, 72, 232, 0.08);
+}
+
+.admin-subitem-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #ffffff;
+  border: 1.5px solid #ced4da;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #343a40;
+  transition: all 0.15s ease;
+}
+
+.admin-subitem-badge:hover {
+  border-color: #7048e8;
+  background: #f8f6ff;
+  color: #5f3dc4;
+}
+
+.admin-subitem-badge .btn-subitem-edit {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #7048e8;
+  font-size: 0.75rem;
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
+.admin-subitem-badge .btn-subitem-del {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #fa5252;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+
+.admin-subitem-badge .btn-subitem-del:hover {
+  color: #c92a2a;
+}
+
