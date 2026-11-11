@@ -604,9 +604,9 @@ function calculateStudentAttendanceStats(studentId, targetWeekDays = null) {
         const mark = normalizeAttendanceValue(stuRecords[ymd]);
         const hasAbsence = mark === 'A' || mark === 'B';
 
-        // 오늘 이후이고 결석 입력이 없는 미래 날짜는 아직 도래하지 않았으므로 출석으로 처리하지 않음
-        // (단, 사용자가 미래 주차로 넘어가서 조회하거나 지난주에 중단된 채 다음 주로 넘어온 경우는 빈칸을 정상 출석으로 평가)
-        const isFutureUnrecorded = !isViewingFutureWeek && (ymd > todayStr) && !hasAbsence;
+        // 오늘 이후이고 마지막 결석일 이후이며 결석 입력이 없는 미래 날짜는 아직 도래하지 않았으므로 출석으로 처리하지 않음
+        // (단, 사용자가 미래 주차로 넘어가서 조회하거나 이후 날짜에 결석이 입력되어 사잇날이 빈칸인 경우는 정상 출석으로 평가)
+        const isFutureUnrecorded = !isViewingFutureWeek && (ymd > todayStr) && (ymd > lastAbsenceDate) && !hasAbsence;
 
         if (isFutureUnrecorded) {
           // 미래 미도래일은 상태 변경 없이 통과
@@ -905,7 +905,7 @@ function renderAttendanceSection() {
         <td><strong>${escapeHtml(stu.studentNo)}</strong></td>
         <td><strong>${escapeHtml(stu.name)}</strong></td>
         ${dayCellsHtml}
-        <td class="col-cell-meal cell-mgt ${stats.mealDisplayType === 'BOTH' ? 'cell-meal-both' : (stats.mealDisplayType === 'STOP' ? 'cell-meal-stop' : '')} ${(stats.mealEvents && stats.mealEvents.length > 2) ? 'meal-multi' : ''}"
+        <td class="col-cell-meal cell-mgt ${stats.mealDisplayType === 'BOTH' ? 'cell-meal-both' : (stats.mealDisplayType === 'STOP' ? 'cell-meal-stop' : (stats.mealDisplayType === 'RESUME' ? 'cell-meal-resume' : ''))} ${(stats.mealEvents && stats.mealEvents.length > 2) ? 'meal-multi' : ''}"
             title="${escapeHtml(stats.mealTitle || '')}">
           ${stats.mealHtml}
         </td>
@@ -1047,7 +1047,7 @@ function updateSingleStudentRowStats(stuId) {
       const isMultiMeal = stats.mealEvents.length > 2;
       const mealCellClass = stats.mealDisplayType === 'BOTH'
         ? 'cell-meal-both'
-        : (stats.mealDisplayType === 'STOP' ? 'cell-meal-stop' : '');
+        : (stats.mealDisplayType === 'STOP' ? 'cell-meal-stop' : (stats.mealDisplayType === 'RESUME' ? 'cell-meal-resume' : ''));
       cMeal.className = `col-cell-meal cell-mgt ${mealCellClass} ${isMultiMeal ? 'meal-multi' : ''}`;
       cMeal.innerHTML = stats.mealHtml;
       cMeal.title = stats.mealTitle || '';
@@ -3473,6 +3473,13 @@ function openStudentPersonalCounselModal(studentId) {
     ? `${guidanceBadgesHtml} ${guidanceCustomHtml}`
     : '<span style="color:#888;">(현재 조건에 해당하는 자동 제안 없음)</span>';
 
+  const mealSummaryHtml = (stats.mealEvents && stats.mealEvents.length > 0)
+    ? stats.mealEvents.map(e => e.type === 'STOP'
+      ? `<span style="color:#d90429; font-weight:800; background:#fff3bf; padding:1px 5px; border-radius:4px;">급식중단(${escapeHtml(e.dateStr)})</span>`
+      : `<span style="color:#1971c2; font-weight:800; background:#ffffff; border:1px solid #a5d8ff; padding:1px 5px; border-radius:4px;">급식재개(${escapeHtml(e.dateStr)})</span>`
+    ).join(' ')
+    : '';
+
   bodyEl.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem; background:#f8f9fa; padding:0.4rem 0.75rem; border-radius:8px; border:1px solid #dee2e6; margin-bottom:0.55rem;">
       <div style="font-size:0.85rem; color:#495057;">
@@ -3497,7 +3504,7 @@ function openStudentPersonalCounselModal(studentId) {
       <tr>
         <th>출결사항</th>
         <td>
-          미인정(A): <strong>${stats.countA1}일</strong> |
+          ${mealSummaryHtml ? `급식관리: ${mealSummaryHtml} | ` : ''}미인정(A): <strong>${stats.countA1}일</strong> |
           모든결석(A+B): <strong>${stats.totalAll}일</strong> (A: ${stats.countA1}일, B: ${stats.countA2}일) ${stats.isTotalAll50 ? '<span class="mini-badge t50">50일 이상 (주황색)</span>' : ''} |
           연속5일(A): <strong>${stats.isStreak5 ? `해당 (연속 ${stats.maxConsecutiveA1}일 - 노란색)` : '미해당'}</strong> |
           누적35일(A): <strong>${stats.isTotal35 ? '해당 (초록색)' : '미해당'}</strong>
